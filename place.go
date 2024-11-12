@@ -96,13 +96,42 @@ func createPlace(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	}
 }
 
+// func getPlaces(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+// 	// Set the response header to indicate JSON content type
+// 	w.Header().Set("Content-Type", "application/json")
+
+// 	collection := client.Database("eventdb").Collection("places")
+
+// 	// Find all places
+// 	cursor, err := collection.Find(context.TODO(), bson.M{})
+// 	if err != nil {
+// 		http.Error(w, err.Error(), http.StatusInternalServerError)
+// 		return
+// 	}
+// 	defer cursor.Close(context.TODO())
+
+// 	var places []Place
+// 	if err = cursor.All(context.TODO(), &places); err != nil {
+// 		http.Error(w, err.Error(), http.StatusInternalServerError)
+// 		return
+// 	}
+
+// 	// Encode the list of places as JSON and write to the response
+// 	json.NewEncoder(w).Encode(places)
+// }
+
 func getPlaces(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	// Set the response header to indicate JSON content type
 	w.Header().Set("Content-Type", "application/json")
 
-	collection := client.Database("eventdb").Collection("places")
+	// // Check if places are cached
+	// cachedPlaces, err := RdxGet("places")
+	// if err == nil && cachedPlaces != "" {
+	// 	// Return cached places if available
+	// 	w.Write([]byte(cachedPlaces))
+	// 	return
+	// }
 
-	// Find all places
+	collection := client.Database("eventdb").Collection("places")
 	cursor, err := collection.Find(context.TODO(), bson.M{})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -116,23 +145,60 @@ func getPlaces(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		return
 	}
 
-	// Encode the list of places as JSON and write to the response
+	// Cache the result
+	placesJSON, _ := json.Marshal(places)
+	RdxSet("places", string(placesJSON))
+
+	// Encode and return places data
 	json.NewEncoder(w).Encode(places)
 }
 
+// func getPlace(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+// 	placeID := ps.ByName("placeid")
+// 	collection := client.Database("eventdb").Collection("places")
+// 	var place Place
+// 	if place.Merch == nil {
+// 		place.Merch = []Merch{}
+// 	}
+// 	err := collection.FindOne(context.TODO(), bson.M{"placeid": placeID}).Decode(&place)
+// 	if err != nil {
+// 		http.Error(w, err.Error(), http.StatusNotFound)
+// 		return
+// 	}
+// 	log.Println("\n\n\n\n\n", place)
+// 	json.NewEncoder(w).Encode(place)
+// }
+
 func getPlace(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	placeID := ps.ByName("placeid")
+	cacheKey := "place:" + placeID
+
+	// Check if the place data is cached
+	cachedPlace, err := RdxGet(cacheKey)
+	if err == nil && cachedPlace != "" {
+		// If cached, return the cached data
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(cachedPlace))
+		return
+	}
+
 	collection := client.Database("eventdb").Collection("places")
 	var place Place
 	if place.Merch == nil {
 		place.Merch = []Merch{}
 	}
-	err := collection.FindOne(context.TODO(), bson.M{"placeid": placeID}).Decode(&place)
+	err = collection.FindOne(context.TODO(), bson.M{"placeid": placeID}).Decode(&place)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
-	log.Println("\n\n\n\n\n", place)
+
+	// Cache the place data
+	placeJSON, _ := json.Marshal(place)
+	RdxSet(cacheKey, string(placeJSON))
+
+	// Return the place data
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(place)
 }
 
@@ -227,6 +293,7 @@ func editPlace(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		return
 	}
 
+	RdxDel("place:" + placeID) // Invalidate the cache for the deleted place
 	// Respond with the updated place
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -271,6 +338,7 @@ func deletePlace(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	RdxDel("place:" + placeID) // Invalidate the cache for the deleted place
 
 	// Respond with success
 	w.WriteHeader(http.StatusOK)

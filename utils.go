@@ -94,3 +94,25 @@ func sendResponse(w http.ResponseWriter, status int, data interface{}, message s
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 	}
 }
+
+// type CustomError struct {
+// 	Code    int
+// 	Message string
+// }
+
+// func (e *CustomError) Error() string {
+// 	return e.Message
+// }
+
+// func sendError(w http.ResponseWriter, err *CustomError) {
+// 	w.WriteHeader(err.Code)
+// 	json.NewEncoder(w).Encode(map[string]string{"error": err.Message})
+// }
+
+// func funcname() {
+// 	if err != nil {
+// 		sendError(w, &CustomError{Code: http.StatusInternalServerError, Message: "Error retrieving event"})
+// 		return
+// 	}
+
+// }

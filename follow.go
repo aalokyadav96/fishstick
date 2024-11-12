@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -11,19 +12,64 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-// Handle retrieving followers
-func getFollowers(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+func parseToken(r *http.Request) (*Claims, error) {
 	tokenString := r.Header.Get("Authorization")
 	claims := &Claims{}
-	jwt.ParseWithClaims(tokenString[7:], claims, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(tokenString[7:], claims, func(token *jwt.Token) (interface{}, error) {
 		return jwtSecret, nil
 	})
+	if err != nil || !token.Valid {
+		return nil, fmt.Errorf("invalid token")
+	}
+	return claims, nil
+}
+
+// // Handle retrieving followers
+// func getFollowers(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+// 	tokenString := r.Header.Get("Authorization")
+// 	claims := &Claims{}
+// 	jwt.ParseWithClaims(tokenString[7:], claims, func(token *jwt.Token) (interface{}, error) {
+// 		return jwtSecret, nil
+// 	})
+
+// 	var user User
+// 	err := userCollection.FindOne(context.TODO(), bson.M{"username": claims.Username}).Decode(&user)
+// 	if err != nil {
+// 		http.Error(w, "User not found", http.StatusNotFound)
+// 		log.Printf("User not found: %s", claims.Username)
+// 		return
+// 	}
+
+// 	followers := []User{}
+// 	for _, followerID := range user.Follows {
+// 		var follower User
+// 		if err := userCollection.FindOne(context.TODO(), bson.M{"userid": followerID}).Decode(&follower); err == nil {
+// 			followers = append(followers, follower)
+// 		}
+// 	}
+
+// 	json.NewEncoder(w).Encode(followers)
+// }
+
+func getFollowers(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	claims, err := parseToken(r)
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	userKey := fmt.Sprintf("user:%s:followers", claims.Username)
+	cachedFollowers, err := RdxGet(userKey)
+	if err == nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(cachedFollowers))
+		return
+	}
 
 	var user User
-	err := userCollection.FindOne(context.TODO(), bson.M{"username": claims.Username}).Decode(&user)
+	err = userCollection.FindOne(context.TODO(), bson.M{"username": claims.Username}).Decode(&user)
 	if err != nil {
 		http.Error(w, "User not found", http.StatusNotFound)
-		log.Printf("User not found: %s", claims.Username)
 		return
 	}
 
@@ -34,6 +80,10 @@ func getFollowers(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 			followers = append(followers, follower)
 		}
 	}
+
+	// Cache the followers list for the user
+	followersJSON, _ := json.Marshal(followers)
+	RdxSet(userKey, string(followersJSON))
 
 	json.NewEncoder(w).Encode(followers)
 }
@@ -65,24 +115,70 @@ func getFollowing(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	json.NewEncoder(w).Encode(following)
 }
 
-// Handle suggesting users to follow
-func suggestFollowers(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	tokenString := r.Header.Get("Authorization")
-	claims := &Claims{}
-	jwt.ParseWithClaims(tokenString[7:], claims, func(token *jwt.Token) (interface{}, error) {
-		return jwtSecret, nil
-	})
+// // Handle suggesting users to follow
+// func suggestFollowers(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+// 	tokenString := r.Header.Get("Authorization")
+// 	claims := &Claims{}
+// 	jwt.ParseWithClaims(tokenString[7:], claims, func(token *jwt.Token) (interface{}, error) {
+// 		return jwtSecret, nil
+// 	})
 
-	var user User
-	err := userCollection.FindOne(context.TODO(), bson.M{"username": claims.Username}).Decode(&user)
+// 	var user User
+// 	err := userCollection.FindOne(context.TODO(), bson.M{"username": claims.Username}).Decode(&user)
+// 	if err != nil {
+// 		http.Error(w, "User not found", http.StatusNotFound)
+// 		log.Printf("User not found: %s", claims.Username)
+// 		return
+// 	}
+
+// 	// Suggest users excluding the current user and already followed users
+// 	suggestedUsers := []User{}
+// 	cursor, err := userCollection.Find(context.TODO(), bson.M{"username": bson.M{"$ne": user.Username}})
+// 	if err != nil {
+// 		http.Error(w, "Failed to fetch suggestions", http.StatusInternalServerError)
+// 		return
+// 	}
+// 	defer cursor.Close(context.TODO())
+
+// 	for cursor.Next(context.TODO()) {
+// 		var suggestedUser User
+// 		if err := cursor.Decode(&suggestedUser); err == nil && !contains(user.Follows, suggestedUser.Username) {
+// 			suggestedUser.Password = ""
+// 			suggestedUsers = append(suggestedUsers, suggestedUser)
+// 		}
+// 	}
+
+// 	json.NewEncoder(w).Encode(suggestedUsers)
+// }
+
+func suggestFollowers(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	claims, err := parseToken(r)
 	if err != nil {
-		http.Error(w, "User not found", http.StatusNotFound)
-		log.Printf("User not found: %s", claims.Username)
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
-	// Suggest users excluding the current user and already followed users
-	suggestedUsers := []User{}
+	// Pagination parameters
+	page := r.URL.Query().Get("page")
+	limit := r.URL.Query().Get("limit")
+
+	if page == "" {
+		page = "1"
+	}
+	if limit == "" {
+		limit = "10"
+	}
+
+	// You can add pagination logic here based on `page` and `limit`
+
+	var user User
+	err = userCollection.FindOne(context.TODO(), bson.M{"username": claims.Username}).Decode(&user)
+	if err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	// Query for suggested users excluding the current user and already followed users
 	cursor, err := userCollection.Find(context.TODO(), bson.M{"username": bson.M{"$ne": user.Username}})
 	if err != nil {
 		http.Error(w, "Failed to fetch suggestions", http.StatusInternalServerError)
@@ -90,14 +186,16 @@ func suggestFollowers(w http.ResponseWriter, r *http.Request, _ httprouter.Param
 	}
 	defer cursor.Close(context.TODO())
 
+	suggestedUsers := []User{}
 	for cursor.Next(context.TODO()) {
 		var suggestedUser User
 		if err := cursor.Decode(&suggestedUser); err == nil && !contains(user.Follows, suggestedUser.Username) {
-			suggestedUser.Password = ""
+			suggestedUser.Password = "" // Don't send password
 			suggestedUsers = append(suggestedUsers, suggestedUser)
 		}
 	}
 
+	// Return the suggested users
 	json.NewEncoder(w).Encode(suggestedUsers)
 }
 
@@ -178,3 +276,22 @@ func toggleFollow(w http.ResponseWriter, r *http.Request, ps httprouter.Params) 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
 }
+
+// bulkOps := []mongo.WriteModel{}
+
+// if isFollowing {
+//     // Unfollow - remove from both users
+//     bulkOps = append(bulkOps, mongo.NewUpdateOneModel().SetFilter(bson.M{"userid": userId}).SetUpdate(bson.M{"$pull": bson.M{"follows": followedUserId}}))
+//     bulkOps = append(bulkOps, mongo.NewUpdateOneModel().SetFilter(bson.M{"userid": followedUserId}).SetUpdate(bson.M{"$pull": bson.M{"followers": userId}}))
+// } else {
+//     // Follow - add to both users
+//     bulkOps = append(bulkOps, mongo.NewUpdateOneModel().SetFilter(bson.M{"userid": userId}).SetUpdate(bson.M{"$addToSet": bson.M{"follows": followedUserId}}))
+//     bulkOps = append(bulkOps, mongo.NewUpdateOneModel().SetFilter(bson.M{"userid": followedUserId}).SetUpdate(bson.M{"$addToSet": bson.M{"followers": userId}}))
+// }
+
+// // Execute bulk write operation
+// _, err := userCollection.BulkWrite(context.TODO(), bulkOps)
+// if err != nil {
+//     http.Error(w, "Failed to update follow status", http.StatusInternalServerError)
+//     return
+// }

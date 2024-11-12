@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -76,29 +77,96 @@ func addMedia(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	json.NewEncoder(w).Encode(media)
 }
 
-// getMedia retrieves a specific media file for a given event and media ID
-func getMedia(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	eventID := ps.ByName("eventid") // Extract the event ID from the URL parameters
-	mediaID := ps.ByName("id")      // Extract the media ID from the URL parameters
+// // getMedia retrieves a specific media file for a given event and media ID
+// func getMedia(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+// 	eventID := ps.ByName("eventid") // Extract the event ID from the URL parameters
+// 	mediaID := ps.ByName("id")      // Extract the media ID from the URL parameters
 
-	// Query the database for the media document using both eventID and mediaID
+// 	// Query the database for the media document using both eventID and mediaID
+// 	collection := client.Database("eventdb").Collection("media")
+// 	var media Media
+// 	err := collection.FindOne(context.TODO(), bson.M{"eventid": eventID, "id": mediaID}).Decode(&media)
+// 	if err != nil {
+// 		// If there's an error (e.g., no matching media found), send a 404 response
+// 		http.Error(w, "Media not found", http.StatusNotFound)
+// 		return
+// 	}
+
+// 	w.Header().Set("Content-Type", "application/json")
+// 	json.NewEncoder(w).Encode(media)
+// }
+
+func getMedia(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	eventID := ps.ByName("eventid")
+	mediaID := ps.ByName("id")
+	cacheKey := fmt.Sprintf("media:%s:%s", eventID, mediaID)
+
+	// Check the cache first
+	cachedMedia, err := RdxGet(cacheKey) // Assuming RdxGet is a function to get cached data
+	if err == nil && cachedMedia != "" {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(cachedMedia))
+		return
+	}
+
+	// Database query if not in cache
 	collection := client.Database("eventdb").Collection("media")
 	var media Media
-	err := collection.FindOne(context.TODO(), bson.M{"eventid": eventID, "id": mediaID}).Decode(&media)
+	err = collection.FindOne(context.TODO(), bson.M{"eventid": eventID, "id": mediaID}).Decode(&media)
 	if err != nil {
-		// If there's an error (e.g., no matching media found), send a 404 response
 		http.Error(w, "Media not found", http.StatusNotFound)
 		return
 	}
+
+	// Cache the result
+	mediaJSON, _ := json.Marshal(media)
+	RdxSet(cacheKey, string(mediaJSON)) // Assuming RdxSet is a function to cache data
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(media)
 }
 
-// getMedias retrieves all media for a specific event
+// // getMedias retrieves all media for a specific event
+// func getMedias(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+// 	eventID := ps.ByName("eventid")
+
+// 	collection := client.Database("eventdb").Collection("media")
+// 	cursor, err := collection.Find(context.TODO(), bson.M{"eventid": eventID})
+// 	if err != nil {
+// 		http.Error(w, "Failed to retrieve media", http.StatusInternalServerError)
+// 		return
+// 	}
+// 	defer cursor.Close(context.TODO())
+
+// 	var medias []Media
+// 	for cursor.Next(context.TODO()) {
+// 		var media Media
+// 		if err := cursor.Decode(&media); err != nil {
+// 			http.Error(w, "Failed to decode media", http.StatusInternalServerError)
+// 			return
+// 		}
+// 		medias = append(medias, media)
+// 	}
+// 	if len(medias) == 0 {
+// 		medias = []Media{}
+// 	}
+// 	w.Header().Set("Content-Type", "application/json")
+// 	json.NewEncoder(w).Encode(medias)
+// }
+
 func getMedias(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	eventID := ps.ByName("eventid")
+	cacheKey := fmt.Sprintf("medialist:%s", eventID)
 
+	// Check the cache first
+	cachedMedias, err := RdxGet(cacheKey)
+	if err == nil && cachedMedias != "" {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(cachedMedias))
+		return
+	}
+
+	// Database query if not in cache
 	collection := client.Database("eventdb").Collection("media")
 	cursor, err := collection.Find(context.TODO(), bson.M{"eventid": eventID})
 	if err != nil {
@@ -116,14 +184,53 @@ func getMedias(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		}
 		medias = append(medias, media)
 	}
-	if len(medias) == 0 {
-		medias = []Media{}
+
+	if err := cursor.Err(); err != nil {
+		http.Error(w, "Cursor error", http.StatusInternalServerError)
+		return
 	}
+
+	// Cache the result
+	mediasJSON, _ := json.Marshal(medias)
+	RdxSet(cacheKey, string(mediasJSON)) // Assuming RdxSet is a function to cache data
+
+	// Respond with media list
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(medias)
 }
 
-// deleteMedia deletes a specific media file
+// // deleteMedia deletes a specific media file
+// func deleteMedia(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+// 	eventID := ps.ByName("eventid")
+// 	mediaID := ps.ByName("id")
+
+// 	collection := client.Database("eventdb").Collection("media")
+// 	var media Media
+// 	err := collection.FindOne(context.TODO(), bson.M{"eventid": eventID, "id": mediaID}).Decode(&media)
+// 	if err != nil {
+// 		http.Error(w, "Media not found", http.StatusNotFound)
+// 		return
+// 	}
+
+// 	// Remove the media entry from the database
+// 	_, err = collection.DeleteOne(context.TODO(), bson.M{"eventid": eventID, "id": mediaID})
+// 	if err != nil {
+// 		http.Error(w, "Failed to delete media from database", http.StatusInternalServerError)
+// 		return
+// 	}
+
+// 	// Optionally, remove the file from the filesystem
+// 	os.Remove(media.URL)
+
+// 	// w.WriteHeader(http.StatusNoContent)
+// 	w.Header().Set("Content-Type", "application/json")
+// 	w.WriteHeader(http.StatusOK)
+// 	json.NewEncoder(w).Encode(map[string]interface{}{
+// 		"ok":      true,
+// 		"message": "Media deleted successfully",
+// 	})
+// }
+
 func deleteMedia(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	eventID := ps.ByName("eventid")
 	mediaID := ps.ByName("id")
@@ -144,8 +251,20 @@ func deleteMedia(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	}
 
 	// Optionally, remove the file from the filesystem
-	os.Remove(media.URL)
+	// err = os.Remove(media.URL)
+	// if err != nil {
+	// 	http.Error(w, "Failed to remove media file", http.StatusInternalServerError)
+	// 	return
+	// }
 
-	// w.WriteHeader(http.StatusNoContent)
-	sendResponse(w, http.StatusNoContent, map[string]string{"": ""}, "Delete successful", nil)
+	// Invalidate the cache
+	RdxDel(fmt.Sprintf("media:%s:%s", eventID, mediaID)) // Invalidate the media cache
+	RdxDel(fmt.Sprintf("medialist:%s", eventID))         // Invalidate the list cache
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"ok":      true,
+		"message": "Media deleted successfully",
+	})
 }

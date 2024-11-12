@@ -16,12 +16,63 @@ import (
 )
 
 // Handle retrieving another user's profile
+// func getUserProfile(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+// 	username := ps.ByName("username")
+// 	var user User
+
+// 	// Retrieve the user by username
+// 	err := userCollection.FindOne(context.TODO(), bson.M{"username": username}).Decode(&user)
+// 	if err != nil {
+// 		if err == mongo.ErrNoDocuments {
+// 			http.Error(w, "User not found", http.StatusNotFound)
+// 			log.Printf("User not found: %s", username)
+// 			return
+// 		}
+// 		http.Error(w, "Internal server error", http.StatusInternalServerError)
+// 		log.Printf("Error retrieving user: %v", err)
+// 		return
+// 	}
+
+// 	// Prepare the user profile response
+// 	var userProfile UserProfileResponse
+// 	userProfile.UserID = user.UserID
+// 	userProfile.Username = user.Username
+// 	userProfile.Email = user.Email
+// 	userProfile.Bio = user.Bio
+// 	userProfile.ProfilePicture = user.ProfilePicture
+// 	userProfile.SocialLinks = user.SocialLinks
+
+// 	// Get the ID of the requesting user from the context
+// 	requestingUserID, ok := r.Context().Value(userIDKey).(string)
+// 	if ok {
+// 		log.Println("Requesting User ID:", requestingUserID)
+
+// 		// Check if the requesting user is following the target user
+// 		userProfile.IsFollowing = contains(user.Followers, requestingUserID)
+// 	}
+
+// 	log.Println("User Profile Response:", userProfile)
+
+// 	// Send the response
+// 	w.Header().Set("Content-Type", "application/json")
+// 	json.NewEncoder(w).Encode(userProfile)
+// }
+
 func getUserProfile(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	username := ps.ByName("username")
 	var user User
 
-	// Retrieve the user by username
-	err := userCollection.FindOne(context.TODO(), bson.M{"username": username}).Decode(&user)
+	// Check Redis cache for the profile
+	cachedProfile, err := RdxGet("profile:" + username)
+	if err == nil && cachedProfile != "" {
+		// If profile is cached, return it
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(cachedProfile))
+		return
+	}
+
+	// Retrieve from database if not cached
+	err = userCollection.FindOne(context.TODO(), bson.M{"username": username}).Decode(&user)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			http.Error(w, "User not found", http.StatusNotFound)
@@ -41,6 +92,10 @@ func getUserProfile(w http.ResponseWriter, r *http.Request, ps httprouter.Params
 	userProfile.Bio = user.Bio
 	userProfile.ProfilePicture = user.ProfilePicture
 	userProfile.SocialLinks = user.SocialLinks
+
+	// Cache the profile in Redis for future use
+	profileJSON, _ := json.Marshal(userProfile)
+	RdxSet("profile:"+username, string(profileJSON))
 
 	// Get the ID of the requesting user from the context
 	requestingUserID, ok := r.Context().Value(userIDKey).(string)
@@ -142,7 +197,6 @@ func editProfile(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		return
 	}
 	var userProfile User
-
 	// Retrieve the user by username
 	err = userCollection.FindOne(context.TODO(), bson.M{"username": claims.Username}).Decode(&userProfile)
 	if err != nil {
@@ -155,12 +209,32 @@ func editProfile(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		log.Printf("Error retrieving user: %v", err)
 		return
 	}
-	w.WriteHeader(http.StatusOK) // Send 204 No Content
+	RdxDel("profile:" + claims.Username) // Delete cached profile
+	w.WriteHeader(http.StatusOK)         // Send 204 No Content
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(userProfile)
 }
 
-// Handle profile retrieval
+// // Handle profile retrieval
+// func getProfile(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+// 	tokenString := r.Header.Get("Authorization")
+// 	claims := &Claims{}
+// 	jwt.ParseWithClaims(tokenString[7:], claims, func(token *jwt.Token) (interface{}, error) {
+// 		return jwtSecret, nil
+// 	})
+
+// 	var user User
+// 	err := userCollection.FindOne(context.TODO(), bson.M{"username": claims.Username}).Decode(&user)
+// 	if err != nil {
+// 		http.Error(w, "User not found", http.StatusNotFound)
+// 		log.Printf("User not found: %s", claims.Username)
+// 		return
+// 	}
+
+// 	user.Password = "" // Do not return the password
+// 	json.NewEncoder(w).Encode(user)
+// }
+
 func getProfile(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	tokenString := r.Header.Get("Authorization")
 	claims := &Claims{}
@@ -168,8 +242,17 @@ func getProfile(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		return jwtSecret, nil
 	})
 
+	// Check Redis cache for profile
+	cachedProfile, err := RdxGet("profile:" + claims.Username)
+	if err == nil && cachedProfile != "" {
+		// If cached, return it
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(cachedProfile))
+		return
+	}
+
 	var user User
-	err := userCollection.FindOne(context.TODO(), bson.M{"username": claims.Username}).Decode(&user)
+	err = userCollection.FindOne(context.TODO(), bson.M{"username": claims.Username}).Decode(&user)
 	if err != nil {
 		http.Error(w, "User not found", http.StatusNotFound)
 		log.Printf("User not found: %s", claims.Username)
@@ -177,13 +260,38 @@ func getProfile(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	}
 
 	user.Password = "" // Do not return the password
+	userJSON, _ := json.Marshal(user)
+
+	// Cache the profile in Redis
+	RdxSet("profile:"+claims.Username, string(userJSON))
+
 	json.NewEncoder(w).Encode(user)
 }
 
-// Handle deleting the user's profile
+// // Handle deleting the user's profile
+// func deleteProfile(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+// 	userID := r.Context().Value(userIDKey).(string) // Get the user ID from context
+// 	log.Println("beep: ", userID)
+// 	_, err := userCollection.DeleteOne(context.TODO(), bson.M{"userid": userID})
+// 	if err != nil {
+// 		http.Error(w, "Error deleting profile", http.StatusInternalServerError)
+// 		log.Printf("Error deleting user profile: %v", err)
+// 		return
+// 	}
+
+// 	// w.WriteHeader(http.StatusNoContent) // No Content response
+// 	log.Printf("User profile deleted: %s", userID)
+
+// 	sendResponse(w, http.StatusOK, map[string]string{"": ""}, "Deletion successful", nil)
+// }
+
 func deleteProfile(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	userID := r.Context().Value(userIDKey).(string) // Get the user ID from context
 	log.Println("beep: ", userID)
+
+	// Invalidate the cached profile in Redis
+	RdxDel("profile:" + userID)
+
 	_, err := userCollection.DeleteOne(context.TODO(), bson.M{"userid": userID})
 	if err != nil {
 		http.Error(w, "Error deleting profile", http.StatusInternalServerError)
@@ -191,7 +299,6 @@ func deleteProfile(w http.ResponseWriter, r *http.Request, _ httprouter.Params) 
 		return
 	}
 
-	// w.WriteHeader(http.StatusNoContent) // No Content response
 	log.Printf("User profile deleted: %s", userID)
 
 	sendResponse(w, http.StatusOK, map[string]string{"": ""}, "Deletion successful", nil)
