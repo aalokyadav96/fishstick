@@ -62,6 +62,7 @@ func main() {
 	router.GET("/place", Index)
 	router.GET("/places", Index)
 	router.GET("/events", Index)
+	router.GET("/feed", Index)
 	router.GET("/user/:username", Index)
 	router.GET("/event/:eventid", Index)
 	router.GET("/place/:placeid", Index)
@@ -70,6 +71,7 @@ func main() {
 
 	router.POST("/api/register", rateLimit(register))
 	router.POST("/api/login", rateLimit(login))
+	// router.POST("/api/logout", authenticate(logoutUser))
 	router.GET("/api/profile", authenticate(getProfile))
 	router.PUT("/api/profile", authenticate(editProfile))
 	router.DELETE("/api/profile", authenticate(deleteProfile))
@@ -81,6 +83,9 @@ func main() {
 	router.POST("/api/activity", authenticate(logActivity))
 	router.GET("/api/activity", authenticate(getActivityFeed))
 	router.GET("/api/user/:username", getUserProfile)
+
+	router.GET("/api/feed", authenticate(getFeed))
+	router.POST("/api/post", authenticate(createPost))
 
 	router.GET("/api/events", getEvents)
 	router.POST("/api/event", authenticate(createEvent))
@@ -104,6 +109,7 @@ func main() {
 
 	router.POST("/api/event/:eventid/ticket", authenticate(createTick))
 	router.GET("/api/event/:eventid/ticket", getTicks)
+	router.GET("/api/event/:eventid/ticket/:ticketid", getTick)
 	router.POST("/api/event/:eventid/tickets/:ticketid/buy", authenticate(buyTicket))
 	router.PUT("/api/event/:eventid/ticket/:ticketid", authenticate(editTick))
 	router.DELETE("/api/event/:eventid/ticket/:ticketid", authenticate(deleteTick))
@@ -121,9 +127,10 @@ func main() {
 	router.DELETE("/api/place/:placeid/merch/:merchid", authenticate(deleteMerch))
 
 	// CORS setup
+
 	c := cors.New(cors.Options{
 		AllowedOrigins:   []string{"*"},
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowCredentials: true,
 	})
 
@@ -136,10 +143,12 @@ func main() {
 	router.ServeFiles("/eventpic/*filepath", http.Dir("eventpic"))
 	router.ServeFiles("/placepic/*filepath", http.Dir("placepic"))
 	// http.ListenAndServe("localhost:4000", router)
-	// Initialize the HTTP server
+
+	handler := securityHeaders(c.Handler(router))
+
 	server := &http.Server{
 		Addr:    ":4000",
-		Handler: c.Handler(router),
+		Handler: handler, // Use the middleware-wrapped handler
 	}
 
 	// Start server in a goroutine to handle graceful shutdown
@@ -157,9 +166,6 @@ func main() {
 	// Wait for termination signal
 	<-shutdownChan
 	log.Println("Shutting down gracefully...")
-
-	// Log active connections before shutdown
-	// log.Println("Active connections:", len(http.DefaultServeMux))
 
 	// Attempt to gracefully shut down the server
 	if err := server.Shutdown(context.Background()); err != nil {
