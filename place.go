@@ -3,10 +3,12 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/julienschmidt/httprouter"
 	"go.mongodb.org/mongo-driver/bson"
@@ -25,18 +27,22 @@ func createPlace(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	name := r.FormValue("name")
 	address := r.FormValue("address")
 	description := r.FormValue("description")
+	capacity := r.FormValue("capacity")
+	category := r.FormValue("category")
 
 	// Validate that required fields are not empty
-	if name == "" || address == "" || description == "" {
+	if name == "" || address == "" || description == "" || capacity == "" || category == "" {
 		http.Error(w, "All fields are required", http.StatusBadRequest)
 		return
 	}
-
+	cap, _ := strconv.Atoi(capacity)
 	// Create a new Place instance
 	place := Place{
 		Name:        name,
 		Address:     address,
 		Description: description,
+		Category:    category,
+		Capacity:    cap,
 		PlaceID:     generateID(14), // Assuming you have a function to generate a unique ID
 	}
 
@@ -96,30 +102,6 @@ func createPlace(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	}
 }
 
-// func getPlaces(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-// 	// Set the response header to indicate JSON content type
-// 	w.Header().Set("Content-Type", "application/json")
-
-// 	collection := client.Database("eventdb").Collection("places")
-
-// 	// Find all places
-// 	cursor, err := collection.Find(context.TODO(), bson.M{})
-// 	if err != nil {
-// 		http.Error(w, err.Error(), http.StatusInternalServerError)
-// 		return
-// 	}
-// 	defer cursor.Close(context.TODO())
-
-// 	var places []Place
-// 	if err = cursor.All(context.TODO(), &places); err != nil {
-// 		http.Error(w, err.Error(), http.StatusInternalServerError)
-// 		return
-// 	}
-
-// 	// Encode the list of places as JSON and write to the response
-// 	json.NewEncoder(w).Encode(places)
-// }
-
 func getPlaces(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	w.Header().Set("Content-Type", "application/json")
 
@@ -152,22 +134,6 @@ func getPlaces(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	// Encode and return places data
 	json.NewEncoder(w).Encode(places)
 }
-
-// func getPlace(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-// 	placeID := ps.ByName("placeid")
-// 	collection := client.Database("eventdb").Collection("places")
-// 	var place Place
-// 	if place.Merch == nil {
-// 		place.Merch = []Merch{}
-// 	}
-// 	err := collection.FindOne(context.TODO(), bson.M{"placeid": placeID}).Decode(&place)
-// 	if err != nil {
-// 		http.Error(w, err.Error(), http.StatusNotFound)
-// 		return
-// 	}
-// 	log.Println("\n\n\n\n\n", place)
-// 	json.NewEncoder(w).Encode(place)
-// }
 
 func getPlace(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	placeID := ps.ByName("placeid")
@@ -347,4 +313,53 @@ func deletePlace(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		"message": "Place deleted successfully",
 	}
 	json.NewEncoder(w).Encode(response)
+}
+
+/***************************************************/
+type Suggestion struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+}
+
+func getPlaceSuggestions(ctx context.Context, query string) ([]Suggestion, error) {
+	var suggestions []Suggestion
+
+	// Use Redis KEYS command to find matching place suggestions by name
+	// (this is a simple approach, you may want a more efficient search strategy)
+	keys, err := conn.Keys(ctx, fmt.Sprintf("suggestions:place:%s*", query)).Result()
+	if err != nil {
+		return nil, err
+	}
+
+	// Retrieve the corresponding place data
+	for _, key := range keys {
+		var suggestion Suggestion
+		err := conn.Get(ctx, key).Scan(&suggestion)
+		if err != nil {
+			return nil, err
+		}
+		suggestions = append(suggestions, suggestion)
+	}
+
+	return suggestions, nil
+}
+
+func suggestionsHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	query := r.URL.Query().Get("query")
+	if query == "" {
+		http.Error(w, "Query is required", http.StatusBadRequest)
+		return
+	}
+
+	ctx := context.Background()
+	suggestions, err := getPlaceSuggestions(ctx, query)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error fetching suggestions: %v", err), http.StatusInternalServerError)
+		return
+	}
+	log.Println("handler sugg : ", suggestions)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(suggestions)
 }

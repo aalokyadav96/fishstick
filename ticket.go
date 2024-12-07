@@ -13,7 +13,7 @@ import (
 )
 
 // Create Ticket
-func createTick(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+func createTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	eventID := ps.ByName("eventid")
 
 	// Retrieve form values
@@ -56,50 +56,7 @@ func createTick(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	json.NewEncoder(w).Encode(tick)
 }
 
-// // Get all Tickets for an Event
-// func getTicks(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-// 	eventID := ps.ByName("eventid")
-
-// 	collection := client.Database("eventdb").Collection("ticks")
-
-// 	var tickList []Ticket
-// 	filter := bson.M{"eventid": eventID}
-
-// 	// Query the database
-// 	cursor, err := collection.Find(context.Background(), filter)
-// 	if err != nil {
-// 		http.Error(w, "Failed to fetch tickets", http.StatusInternalServerError)
-// 		return
-// 	}
-// 	defer cursor.Close(context.Background())
-
-// 	// Iterate through the cursor and decode each document into the ticketList
-// 	for cursor.Next(context.Background()) {
-// 		var tick Ticket
-// 		if err := cursor.Decode(&tick); err != nil {
-// 			http.Error(w, "Failed to decode ticket", http.StatusInternalServerError)
-// 			return
-// 		}
-// 		tickList = append(tickList, tick)
-// 	}
-
-// 	// Check for cursor errors
-// 	if err := cursor.Err(); err != nil {
-// 		http.Error(w, "Cursor error", http.StatusInternalServerError)
-// 		return
-// 	}
-// 	if len(tickList) == 0 {
-// 		tickList = []Ticket{}
-// 	}
-
-// 	// Respond with the ticket data
-// 	w.Header().Set("Content-Type", "application/json")
-// 	if err := json.NewEncoder(w).Encode(tickList); err != nil {
-// 		http.Error(w, "Failed to encode ticket data", http.StatusInternalServerError)
-// 	}
-// }
-
-func getTicks(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+func getTickets(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	eventID := ps.ByName("eventid")
 	cacheKey := "event:" + eventID + ":tickets"
 
@@ -146,7 +103,7 @@ func getTicks(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 }
 
 // Fetch a single ticketandise item
-func getTick(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+func getTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	eventID := ps.ByName("eventid")
 	ticketID := ps.ByName("ticketid")
 	cacheKey := fmt.Sprintf("tick:%s:%s", eventID, ticketID)
@@ -178,7 +135,7 @@ func getTick(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 }
 
 // Edit Ticket
-func editTick(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+func editTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	eventID := ps.ByName("eventid")
 	tickID := ps.ByName("ticketid")
 
@@ -243,60 +200,8 @@ func editTick(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	})
 }
 
-// // Edit Ticket
-// func editTick(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-// 	eventID := ps.ByName("eventid")
-// 	tickID := ps.ByName("ticketid")
-// 	var tick Ticket
-// 	json.NewDecoder(r.Body).Decode(&tick)
-
-// 	// Update the ticket in MongoDB
-// 	collection := client.Database("eventdb").Collection("ticks")
-// 	_, err := collection.UpdateOne(context.TODO(), bson.M{"eventid": eventID, "ticketid": tickID}, bson.M{"$set": tick})
-// 	if err != nil {
-// 		http.Error(w, err.Error(), http.StatusInternalServerError)
-// 		return
-// 	}
-
-// 	// // Invalidate the cache for this event's tickets
-// 	// RdxDel("event:" + eventID + ":tickets")
-
-// 	// // Send the updated ticket back as a response
-// 	// w.Header().Set("Content-Type", "application/json")
-// 	// w.WriteHeader(http.StatusOK)
-// 	// json.NewEncoder(w).Encode(tick)
-// 	w.Header().Set("Content-Type", "application/json")
-// 	w.WriteHeader(http.StatusOK)
-// 	json.NewEncoder(w).Encode(map[string]interface{}{
-// 		"success": true,
-// 		"message": "Ticket updated successfully",
-// 		"data":    tick,
-// 	})
-// 	RdxDel("event:" + eventID + ":tickets")
-// }
-
-// // Edit Ticket
-// func editTick(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-// 	eventID := ps.ByName("eventid")
-// 	tickID := ps.ByName("ticketid")
-// 	var tick Ticket
-// 	json.NewDecoder(r.Body).Decode(&tick)
-
-// 	// Update the ticket in MongoDB
-// 	collection := client.Database("eventdb").Collection("ticks")
-// 	_, err := collection.UpdateOne(context.TODO(), bson.M{"eventid": eventID, "ticketid": tickID}, bson.M{"$set": tick})
-// 	if err != nil {
-// 		http.Error(w, err.Error(), http.StatusInternalServerError)
-// 		return
-// 	}
-
-// 	RdxDel("event:" + eventID + ":tickets") // Invalidate the cache for this event's tickets
-
-// 	json.NewEncoder(w).Encode(tick)
-// }
-
 // Delete Ticket
-func deleteTick(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+func deleteTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	eventID := ps.ByName("eventid")
 	tickID := ps.ByName("ticketid")
 
@@ -323,10 +228,23 @@ func buyTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	eventID := ps.ByName("eventid")
 	ticketID := ps.ByName("ticketid")
 
+	// Decode the JSON body to get the quantity
+	var requestBody struct {
+		Quantity int `json:"quantity"`
+	}
+
+	// Parse the request body
+	err := json.NewDecoder(r.Body).Decode(&requestBody)
+	if err != nil || requestBody.Quantity <= 0 {
+		http.Error(w, "Invalid quantity in the request", http.StatusBadRequest)
+		return
+	}
+	quantityRequested := requestBody.Quantity
+
 	// Find the ticket in the database
 	collection := client.Database("eventdb").Collection("ticks")
-	var ticket Ticket // Define the Ticket struct based on your schema
-	err := collection.FindOne(context.TODO(), bson.M{"eventid": eventID, "ticketid": ticketID}).Decode(&ticket)
+	var ticket Ticket
+	err = collection.FindOne(context.TODO(), bson.M{"eventid": eventID, "ticketid": ticketID}).Decode(&ticket)
 	if err != nil {
 		http.Error(w, "Ticket not found or other error", http.StatusNotFound)
 		return
@@ -338,8 +256,14 @@ func buyTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		return
 	}
 
+	// Check if the requested quantity is available
+	if ticket.Quantity < quantityRequested {
+		http.Error(w, "Not enough tickets available for purchase", http.StatusBadRequest)
+		return
+	}
+
 	// Decrease the ticket quantity
-	update := bson.M{"$inc": bson.M{"quantity": -1}}
+	update := bson.M{"$inc": bson.M{"quantity": -quantityRequested}}
 	_, err = collection.UpdateOne(context.TODO(), bson.M{"eventid": eventID, "ticketid": ticketID}, update)
 	if err != nil {
 		http.Error(w, "Failed to update ticket quantity", http.StatusInternalServerError)
@@ -352,5 +276,63 @@ func buyTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
 		"message": "Ticket purchased successfully",
+	})
+}
+
+type Seat struct {
+	Status string
+}
+
+// Book Seats Handler
+func bookSeats(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	var requestBody struct {
+		Seats []string `json:"seats"` // List of seat IDs to be booked
+	}
+
+	// Decode the JSON request body
+	err := json.NewDecoder(r.Body).Decode(&requestBody)
+	if err != nil || len(requestBody.Seats) == 0 {
+		http.Error(w, "Invalid request data", http.StatusBadRequest)
+		return
+	}
+
+	// Check seat availability in the database
+	collection := client.Database("eventdb").Collection("seats")
+	// var seats []Seat
+	cursor, err := collection.Find(context.TODO(), bson.M{"seatid": bson.M{"$in": requestBody.Seats}})
+	if err != nil {
+		http.Error(w, "Failed to retrieve seats", http.StatusInternalServerError)
+		return
+	}
+	defer cursor.Close(context.TODO())
+
+	// Make sure all selected seats are available
+	for cursor.Next(context.TODO()) {
+		var seat Seat
+		err := cursor.Decode(&seat)
+		if err != nil {
+			http.Error(w, "Error processing seat data", http.StatusInternalServerError)
+			return
+		}
+
+		if seat.Status == "booked" {
+			http.Error(w, "One or more seats are already booked", http.StatusConflict)
+			return
+		}
+	}
+
+	// Update seats to 'booked'
+	_, err = collection.UpdateMany(context.TODO(), bson.M{"seatid": bson.M{"$in": requestBody.Seats}}, bson.M{"$set": bson.M{"status": "booked"}})
+	if err != nil {
+		http.Error(w, "Failed to update seat status", http.StatusInternalServerError)
+		return
+	}
+
+	// Respond with success
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Seats booked successfully",
 	})
 }

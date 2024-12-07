@@ -46,12 +46,12 @@ func main() {
 	}()
 
 	// Send a ping to confirm a successful connection
-	if err := client.Database("admin").RunCommand(context.TODO(), bson.D{{"ping", 1}}).Err(); err != nil {
+	if err := client.Database("admin").RunCommand(context.TODO(), bson.D{{Key: "ping", Value: 1}}).Err(); err != nil {
 		panic(err)
 	}
 	fmt.Println("Pinged your deployment. You successfully connected to MongoDB!")
 	userCollection = client.Database("eventdb").Collection("users")
-	
+
 	router := httprouter.New()
 	router.GET("/", Index)
 	router.GET("/about", Index)
@@ -59,6 +59,8 @@ func main() {
 	router.GET("/register", Index)
 	router.GET("/login", Index)
 	router.GET("/create", Index)
+	router.GET("/settings", Index)
+	router.GET("/search", Index)
 	router.GET("/place", Index)
 	router.GET("/places", Index)
 	router.GET("/events", Index)
@@ -67,36 +69,41 @@ func main() {
 	router.GET("/event/:eventid", Index)
 	router.GET("/place/:placeid", Index)
 
+	router.GET("/api/settings", GetSettings)
+	router.GET("/api/settings/:type", GetSetting)
+	router.PUT("/api/settings/:type", UpdateSettings)
+	router.DELETE("/api/settings/:type", DeleteSettings)
+
 	router.GET("/favicon.ico", Favicon)
 
 	router.POST("/api/register", rateLimit(register))
 	router.POST("/api/login", rateLimit(login))
-	// router.POST("/api/logout", authenticate(logoutUser))
+	router.POST("/api/logout", authenticate(logoutUser))
 	router.GET("/api/profile", authenticate(getProfile))
 	router.PUT("/api/profile", authenticate(editProfile))
 	router.DELETE("/api/profile", authenticate(deleteProfile))
 	router.POST("/api/follows/:id", authenticate(toggleFollow))
-	// router.GET("/api/follows/:id", authenticate(doesFollow))
+	router.GET("/api/follows/:id", authenticate(doesFollow))
 	router.GET("/api/followers", authenticate(getFollowers))
 	router.GET("/api/following", authenticate(getFollowing))
 	router.GET("/api/follow/suggestions", authenticate(suggestFollowers))
 	router.POST("/api/activity", authenticate(logActivity))
 	router.GET("/api/activity", authenticate(getActivityFeed))
-	router.GET("/api/user/:username", getUserProfile)
-
-	router.GET("/api/feed", authenticate(getFeed))
-	router.POST("/api/post", authenticate(createPost))
+	router.GET("/api/user/:username", authenticate(getUserProfile))
+	router.POST("/api/token/refresh", rateLimit(authenticate(refreshToken)))
 
 	router.GET("/api/events", getEvents)
+	router.GET("/api/search", searchEvents)
 	router.POST("/api/event", authenticate(createEvent))
 	router.GET("/api/event/:eventid", getEvent)
 	router.PUT("/api/event/:eventid", authenticate(editEvent))
 	router.DELETE("/api/event/:eventid", authenticate(deleteEvent))
 
-	router.POST("/api/event/:eventid/review", authenticate(addReview))
+	// router.POST("/api/event/:eventid/review", authenticate(addReview))
 
 	router.POST("/api/event/:eventid/media", authenticate(addMedia))
 	router.GET("/api/event/:eventid/media/:id", getMedia)
+	router.PUT("/api/event/:eventid/media/:id", editMedia)
 	router.GET("/api/event/:eventid/media", getMedias)
 	router.DELETE("/api/event/:eventid/media/:id", authenticate(deleteMedia))
 
@@ -107,19 +114,26 @@ func main() {
 	router.PUT("/api/event/:eventid/merch/:merchid", authenticate(editMerch))
 	router.DELETE("/api/event/:eventid/merch/:merchid", authenticate(deleteMerch))
 
-	router.POST("/api/event/:eventid/ticket", authenticate(createTick))
-	router.GET("/api/event/:eventid/ticket", getTicks)
-	router.GET("/api/event/:eventid/ticket/:ticketid", getTick)
+	router.POST("/api/event/:eventid/ticket", authenticate(createTicket))
+	router.GET("/api/event/:eventid/ticket", getTickets)
+	router.GET("/api/event/:eventid/ticket/:ticketid", getTicket)
 	router.POST("/api/event/:eventid/tickets/:ticketid/buy", authenticate(buyTicket))
-	router.PUT("/api/event/:eventid/ticket/:ticketid", authenticate(editTick))
-	router.DELETE("/api/event/:eventid/ticket/:ticketid", authenticate(deleteTick))
+	router.PUT("/api/event/:eventid/ticket/:ticketid", authenticate(editTicket))
+	router.DELETE("/api/event/:eventid/ticket/:ticketid", authenticate(deleteTicket))
+	router.POST("/api/book-seats", bookSeats)
 
+	router.GET("/api/feed", authenticate(getPosts))
+	router.POST("/api/post", authenticate(createTweetPost))
+	router.PUT("/api/post/:id", authenticate(editPost))
+	router.DELETE("/api/post/:id", authenticate(deletePost))
+
+	router.GET("/api/suggestions/places", suggestionsHandler)
 	router.GET("/api/places", getPlaces)
 	router.POST("/api/place", authenticate(createPlace))
 	router.GET("/api/place/:placeid", getPlace)
 	router.PUT("/api/place/:placeid", authenticate(editPlace))
 	router.DELETE("/api/place/:placeid", authenticate(deletePlace))
-	router.DELETE("/api/place/:placeid/review", authenticate(addReview))
+	// router.DELETE("/api/place/:placeid/review", authenticate(addReview))
 	router.DELETE("/api/place/:placeid/media", authenticate(addMedia))
 	router.POST("/api/place/:placeid/merch", authenticate(createMerch))
 	router.GET("/api/place/:placeid/merch/:merchid", getMerch)
@@ -129,7 +143,7 @@ func main() {
 	// CORS setup
 
 	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"*"},
+		AllowedOrigins:   []string{"https://showsaw.netlify.app/", "http://localhost:4000"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Content-Type", "Authorization"},
 		AllowCredentials: true,
@@ -144,6 +158,7 @@ func main() {
 	router.ServeFiles("/merchpic/*filepath", http.Dir("merchpic"))
 	router.ServeFiles("/eventpic/*filepath", http.Dir("eventpic"))
 	router.ServeFiles("/placepic/*filepath", http.Dir("placepic"))
+	router.ServeFiles("/postpic/*filepath", http.Dir("postpic"))
 	// http.ListenAndServe("localhost:4000", router)
 
 	handler := securityHeaders(c.Handler(router))

@@ -13,14 +13,24 @@ import (
 
 var tmpl = template.Must(template.ParseGlob("index.html"))
 
-func contains(slice []string, item string) bool {
-	for _, a := range slice {
-		if a == item {
+// Helper function to check if a user is in a slice of followers
+func contains(slice []string, value string) bool {
+	for _, v := range slice {
+		if v == value {
 			return true
 		}
 	}
 	return false
 }
+
+// func contains(slice []string, item string) bool {
+// 	for _, a := range slice {
+// 		if a == item {
+// 			return true
+// 		}
+// 	}
+// 	return false
+// }
 
 func generateID(n int) string {
 	var letters = []rune("abcdefghijklmnopqrstuvwxyz0123456789_ABCDEFGHIJKLMNOPQRSTUVWXYZ")
@@ -115,4 +125,12 @@ func sendResponse(w http.ResponseWriter, status int, data interface{}, message s
 // 		return
 // 	}
 
+// }
+
+// func createIndexes(collection *mongo.Collection) error {
+// 	indexModel := mongo.IndexModel{
+// 		Keys: bson.D{{Key: "timestamp", Value: -1}}, // Sort descending by timestamp
+// 	}
+// 	_, err := collection.Indexes().CreateOne(context.Background(), indexModel)
+// 	return err
 // }

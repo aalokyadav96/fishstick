@@ -31,9 +31,34 @@ type User struct {
 	Followers      []string          `json:"followers,omitempty" bson:"followers,omitempty"`
 }
 
+// UserProfileResponse defines the structure for the user profile response
+type UserProfileResponse struct {
+	UserID         string            `json:"userid" bson:"userid"`
+	Username       string            `json:"username" bson:"username"`
+	Email          string            `json:"email" bson:"email"`
+	Bio            string            `json:"bio,omitempty" bson:"bio,omitempty"`
+	PhoneNumber    string            `json:"phone_number,omitempty" bson:"phone_number,omitempty"`
+	ProfilePicture string            `json:"profile_picture" bson:"profile_picture"`
+	IsFollowing    bool              `json:"is_following" bson:"is_following"` // Added here
+	Followers      int               `json:"followers" bson:"followers"`
+	Follows        int               `json:"follows" bson:"follows"`
+	SocialLinks    map[string]string `json:"social_links,omitempty" bson:"social_links,omitempty"`
+}
+
+// UserProfileResponse defines the structure for the user profile response
+type UserSuggest struct {
+	UserID         string `json:"userid" bson:"userid"`
+	Username       string `json:"username" bson:"username"`
+	Bio            string `json:"bio,omitempty" bson:"bio,omitempty"`
+	ProfilePicture string `json:"profile_picture" bson:"profile_picture"`
+	IsFollowing    bool   `json:"is_following" bson:"is_following"` // Added here
+}
+
 type Preferences struct {
-	Theme             string `json:"theme" bson:"theme"`
-	NotificationEmail bool   `json:"notification_email" bson:"notification_email"`
+	Theme                string `json:"theme" bson:"theme"`
+	NotificationEmail    bool   `json:"notification_email" bson:"notification_email"`
+	NotificationsEnabled bool   `json:"notificationsenabled" bson:"notificationsenabled"`
+	Language             string `json:"language" bson:"language"`
 	// other preference fields
 }
 
@@ -44,6 +69,25 @@ type Merch struct {
 	Price      float64 `json:"price" bson:"price"`
 	Stock      int     `json:"stock" bson:"stock"` // Number of items available
 	MerchPhoto string  `json:"merch_pic" bson:"merch_pic"`
+}
+
+// type Post struct {
+// 	PostID    string  `json:"postid" bson:"postid"`
+// 	Name      string  `json:"name" bson:"name"`
+// 	Price     float64 `json:"price" bson:"price"`
+// 	Stock     int     `json:"stock" bson:"stock"` // Number of items available
+// 	PostPhoto string  `json:"post_pic" bson:"post_pic"`
+// }
+
+type Post struct {
+	ID        interface{} `bson:"_id,omitempty" json:"id"`
+	UserID    string      `json:"userid" bson:"userid"`
+	Username  string      `bson:"username" json:"username"`
+	Text      string      `bson:"text" json:"text"`
+	Type      string      `bson:"type" json:"type"`   // Post type (e.g., "text", "image", "video", "blog", etc.)
+	Media     []string    `bson:"media" json:"media"` // Media URLs (images, videos, etc.)
+	Timestamp string      `bson:"timestamp" json:"timestamp"`
+	Likes     int         `bson:"likes" json:"likes"`
 }
 
 // type Event struct {
@@ -111,6 +155,22 @@ type Event struct {
 	UpdatedAt         time.Time              `json:"updated_at" bson:"updated_at"`
 }
 
+type EventPlace struct {
+	PlaceID        string      `json:"placeid" bson:"placeid"`
+	Name           string      `json:"name,omitempty" bson:"name,omitempty"`
+	Description    string      `json:"description,omitempty" bson:"description,omitempty"`
+	Address        string      `json:"address,omitempty" bson:"address,omitempty"`
+	Capacity       int         `json:"capacity" bson:"capacity"`
+	Phone          string      `json:"phone,omitempty" bson:"phone,omitempty"`
+	Website        string      `json:"website,omitempty" bson:"website,omitempty"`
+	Category       string      `json:"category,omitempty" bson:"category,omitempty"`
+	IsOpen         bool        `json:"isopen,omitempty" bson:"isopen,omitempty"`
+	Status         PlaceStatus `json:"status,omitempty" bson:"status,omitempty"`
+	Amenities      []string    `json:"amenities,omitempty" bson:"amenities,omitempty"`
+	Tags           []string    `json:"tags,omitempty" bson:"tags,omitempty"`
+	OperatingHours []string    `json:"operatinghours,omitempty" bson:"operatinghours,omitempty"`
+}
+
 type Place struct {
 	PlaceID     string `json:"placeid" bson:"placeid"`
 	Name        string `json:"name,omitempty" bson:"name,omitempty"`
@@ -125,7 +185,7 @@ type Place struct {
 	Capacity       int               `json:"capacity" bson:"capacity"`
 	Phone          string            `json:"phone,omitempty" bson:"phone,omitempty"`
 	Website        string            `json:"website,omitempty" bson:"website,omitempty"`
-	Category       Category          `json:"category,omitempty" bson:"category,omitempty"`
+	Category       string            `json:"category,omitempty" bson:"category,omitempty"`
 	IsOpen         bool              `json:"isopen,omitempty" bson:"isopen,omitempty"`
 	Distance       float64           `json:"distance,omitempty" bson:"distance,omitempty"`
 	Status         PlaceStatus       `json:"status,omitempty" bson:"status,omitempty"`
@@ -155,6 +215,16 @@ const (
 	Closed   PlaceStatus = "closed"
 )
 
+// Tweet structure
+type Tweet struct {
+	ID        interface{} `bson:"_id,omitempty" json:"id"`
+	Username  string      `json:"username"`
+	Text      string      `json:"text"`
+	Images    []string    `json:"images"`
+	Timestamp string      `json:"timestamp"`
+	Likes     int         `json:"likes"`
+}
+
 type Activity struct {
 	Username    string    `json:"username" bson:"username"`
 	PlaceID     string    `json:"placeId,omitempty" bson:"placeId,omitempty"`
@@ -166,51 +236,50 @@ type Activity struct {
 	DeviceInfo  string    `json:"deviceInfo,omitempty" bson:"deviceInfo,omitempty"`
 }
 
-// UserProfileResponse defines the structure for the user profile response
-type UserProfileResponse struct {
-	UserID         string            `json:"userid" bson:"userid"`
-	Username       string            `json:"username" bson:"username"`
-	Email          string            `json:"email" bson:"email"`
-	Bio            string            `json:"bio,omitempty" bson:"bio,omitempty"`
-	PhoneNumber    string            `json:"phone_number,omitempty" bson:"phone_number,omitempty"`
-	ProfilePicture string            `json:"profile_picture" bson:"profile_picture"`
-	IsFollowing    bool              `json:"is_following" bson:"is_following"` // Added here
-	SocialLinks    map[string]string `json:"social_links,omitempty" bson:"social_links,omitempty"`
-}
-
 type Response struct {
 	Message string      `json:"message,omitempty"`
 	Data    interface{} `json:"data,omitempty"`
 	Error   string      `json:"error,omitempty"`
 }
 
-type Review struct {
-	ReviewID    string    `json:"reviewid" bson:"reviewid"`
-	EventID     string    `json:"eventid" bson:"eventid"` // Reference to Event ID
-	UserID      string    `json:"userid" bson:"userid"`   // Reference to User ID
-	Rating      int       `json:"rating" bson:"rating"`   // Rating out of 5
-	Comment     string    `json:"comment" bson:"comment"` // Review comment
-	Date        string    `json:"date" bson:"date"`       // Date of the review
-	Likes       int       `json:"likes,omitempty" bson:"likes,omitempty"`
-	Dislikes    int       `json:"dislikes,omitempty" bson:"dislikes,omitempty"`
-	Attachments []Media   `json:"attachments,omitempty" bson:"attachments,omitempty"`
-	CreatedAt   time.Time `json:"createdAt,omitempty" bson:"createdAt,omitempty"`
-}
+// type Review struct {
+// 	ReviewID    string    `json:"reviewid" bson:"reviewid"`
+// 	EventID     string    `json:"eventid" bson:"eventid"` // Reference to Event ID
+// 	UserID      string    `json:"userid" bson:"userid"`   // Reference to User ID
+// 	Rating      int       `json:"rating" bson:"rating"`   // Rating out of 5
+// 	Comment     string    `json:"comment" bson:"comment"` // Review comment
+// 	Date        string    `json:"date" bson:"date"`       // Date of the review
+// 	Likes       int       `json:"likes,omitempty" bson:"likes,omitempty"`
+// 	Dislikes    int       `json:"dislikes,omitempty" bson:"dislikes,omitempty"`
+// 	Attachments []Media   `json:"attachments,omitempty" bson:"attachments,omitempty"`
+// 	CreatedAt   time.Time `json:"createdAt,omitempty" bson:"createdAt,omitempty"`
+// }
 
 type Media struct {
-	ID          string `json:"id" bson:"id"`
-	EventID     string `json:"eventid" bson:"eventid"` // Reference to Event ID
-	Type        string `json:"type" bson:"type"`       // e.g., "image", "video"
-	URL         string `json:"url" bson:"url"`         // URL of the media
-	Caption     string `json:"caption" bson:"caption"` // Optional caption for the media
-	Description string `json:"description,omitempty"`
-	CreatorID   string `json:"creatorid" bson:"creatorid"`
+	ID            string    `json:"id" bson:"id"`
+	EventID       string    `json:"eventid" bson:"eventid"`
+	Type          string    `json:"type" bson:"type"`
+	URL           string    `json:"url" bson:"url"`
+	ThumbnailURL  string    `json:"thumbnailUrl,omitempty" bson:"thumbnailUrl,omitempty"`
+	Caption       string    `json:"caption" bson:"caption"`
+	Description   string    `json:"description,omitempty" bson:"description,omitempty"`
+	CreatorID     string    `json:"creatorid" bson:"creatorid"`
+	CreatedAt     time.Time `json:"createdAt" bson:"createdAt"`
+	UpdatedAt     time.Time `json:"updatedAt,omitempty" bson:"updatedAt,omitempty"`
+	LikesCount    int       `json:"likesCount" bson:"likesCount"`
+	CommentsCount int       `json:"commentsCount" bson:"commentsCount"`
+	Visibility    string    `json:"visibility" bson:"visibility"`
+	Tags          []string  `json:"tags,omitempty" bson:"tags,omitempty"`
+	Duration      int       `json:"duration,omitempty" bson:"duration,omitempty"`
+	FileSize      int64     `json:"fileSize,omitempty" bson:"fileSize,omitempty"`
+	MimeType      string    `json:"mimeType,omitempty" bson:"mimeType,omitempty"`
+	IsFeatured    bool      `json:"isFeatured,omitempty" bson:"isFeatured,omitempty"`
 }
 
-type Category struct {
-	MainCategory  string   `json:"mainCategory,omitempty" bson:"mainCategory,omitempty"`
-	SubCategories []string `json:"subCategories,omitempty" bson:"subCategories,omitempty"`
-}
+// type Category struct {
+// 	MainCategory  string   `json:"mainCategory,omitempty" bson:"mainCategory,omitempty"`
+// 	SubCategories []string `json:"subCategories,omitempty" bson:"subCategories,omitempty"`
+// }
 
 type Coordinates struct {
 	Latitude  float64 `json:"latitude,omitempty" bson:"latitude,omitempty"`
