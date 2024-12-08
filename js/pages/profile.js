@@ -1,7 +1,7 @@
 import { API_URL, state } from "../state/state.js";
 import { apiFetch } from "../api/api.js";
-import { validateInputs, isValidUsername, isValidEmail, showSnackbar, handleError } from "../utils/utils.js";
-import { renderPage } from "../routes/render.js";
+import { showSnackbar, handleError } from "../utils/utils.js";
+import { renderPage, navigate } from "../routes/render.js";
 
 // Fetch the profile either from localStorage or via an API request
 async function fetchProfile() {
@@ -172,13 +172,13 @@ function attachProfileEventListeners() {
 
     if (editButton) {
         editButton.addEventListener("click", () => {
-            window.editProfile();
+            editProfile();
         });
     }
 
     if (deleteButton) {
         deleteButton.addEventListener("click", () => {
-            window.deleteProfile();
+            deleteProfile();
         });
     }
 }
@@ -188,7 +188,7 @@ function attachUserProfileListeners(profile) {
     const followButton = document.querySelector(`[data-userid="${profile.userid}"]`);
     if (followButton) {
         followButton.addEventListener("click", () => {
-            window.toggleFollow(profile.userid);
+            toggleFollow(profile.userid);
         });
     }
 }
@@ -223,7 +223,6 @@ async function toggleFollow(userId) {
     }
 }
 
-// Display follow suggestions
 async function displayFollowSuggestions() {
     const suggestionsSection = document.getElementById("follow-suggestions");
 
@@ -232,13 +231,22 @@ async function displayFollowSuggestions() {
         if (suggestions && suggestions.length > 0) {
             suggestionsSection.innerHTML = `
                 <h3>Suggested Users to Follow:</h3>
-                <ul>
+                <ul id="suggestions-list">
                     ${suggestions.map(user => `
                         <li>
                             ${user.username}
-                            <button onclick="navigate('/user/${user.username}')">View Profile</button>
-                        </li>`).join('')}
+                            <button class="view-profile-btn" data-username="${user.username}">View Profile</button>
+                        </li>
+                    `).join('')}
                 </ul>`;
+            
+            // Add event listeners to "View Profile" buttons
+            document.querySelectorAll('.view-profile-btn').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const username = event.target.dataset.username;
+                    navigate(`/user/${username}`);
+                });
+            });
         } else {
             suggestionsSection.innerHTML = "<p>No follow suggestions available.</p>";
         }
@@ -249,7 +257,6 @@ async function displayFollowSuggestions() {
     }
 }
 
-// Display the profile edit form
 async function editProfile() {
     const profileSection = document.getElementById("profile-section");
 
@@ -269,7 +276,7 @@ async function editProfile() {
             <textarea id="edit-bio" placeholder="Bio">${bio || ''}</textarea>
             <input type="text" id="edit-phone" placeholder="Phone Number" value="${phone_number || ''}" />
             <input type="text" id="edit-social" placeholder="Social Links (comma-separated)" value="${socialLinks ? Object.values(socialLinks).join(', ') : ''}" />
-            <input type="file" id="edit-profile-picture" accept="image/*" onchange="previewProfilePicture(event)" />
+            <input type="file" id="edit-profile-picture" accept="image/*" />
             ${profilePictureSrc ? `
                 <div>
                     <p>Current Profile Picture:</p>
@@ -277,41 +284,458 @@ async function editProfile() {
                 </div>
                 <img id="profile-picture-preview" style="display:none; max-width: 200px;" alt="Profile Picture Preview" />
             ` : '<img id="profile-picture-preview" style="display:none;" />'}
-            <button type="button" onclick="updateProfile()">Update Profile</button>
-            <button type="button" onclick="renderPage()">Cancel</button>
+            <button type="button" id="update-profile-btn">Update Profile</button>
+            <button type="button" id="cancel-profile-btn">Cancel</button>
         </form>
     `;
+
+    // Add event listeners
+    document.getElementById('edit-profile-picture').addEventListener('change', previewProfilePicture);
+    document.getElementById('update-profile-btn').addEventListener('click', updateProfile);
+    document.getElementById('cancel-profile-btn').addEventListener('click', renderPage);
 }
 
-// Update profile
+
+// // Display follow suggestions
+// async function displayFollowSuggestions() {
+//     const suggestionsSection = document.getElementById("follow-suggestions");
+
+//     try {
+//         const suggestions = await apiFetch('/follow/suggestions');
+//         if (suggestions && suggestions.length > 0) {
+//             suggestionsSection.innerHTML = `
+//                 <h3>Suggested Users to Follow:</h3>
+//                 <ul>
+//                     ${suggestions.map(user => `
+//                         <li>
+//                             ${user.username}
+//                             <button onclick="navigate('/user/${user.username}')">View Profile</button>
+//                         </li>`).join('')}
+//                 </ul>`;
+//         } else {
+//             suggestionsSection.innerHTML = "<p>No follow suggestions available.</p>";
+//         }
+//     } catch (error) {
+//         console.error("Error loading follow suggestions:", error);
+//         suggestionsSection.innerHTML = "<p>Failed to load suggestions.</p>";
+//         showSnackbar("Error loading follow suggestions.");
+//     }
+// }
+
+// // Display the profile edit form
+// async function editProfile() {
+//     const profileSection = document.getElementById("profile-section");
+
+//     if (!state.userProfile) {
+//         showSnackbar("Please log in to edit your profile.");
+//         return;
+//     }
+
+//     const { username, email, bio, phone_number, socialLinks, profile_picture } = state.userProfile;
+//     const profilePictureSrc = profile_picture ? `/userpic/${profile_picture}` : '';
+
+//     profileSection.innerHTML = `
+//         <h2>Edit Profile</h2>
+//         <form id="edit-profile-form">
+//             <input type="text" id="edit-username" placeholder="Username" value="${username}" />
+//             <input type="email" id="edit-email" placeholder="Email" value="${email}" />
+//             <textarea id="edit-bio" placeholder="Bio">${bio || ''}</textarea>
+//             <input type="text" id="edit-phone" placeholder="Phone Number" value="${phone_number || ''}" />
+//             <input type="text" id="edit-social" placeholder="Social Links (comma-separated)" value="${socialLinks ? Object.values(socialLinks).join(', ') : ''}" />
+//             <input type="file" id="edit-profile-picture" accept="image/*" onchange="previewProfilePicture(event)" />
+//             ${profilePictureSrc ? `
+//                 <div>
+//                     <p>Current Profile Picture:</p>
+//                     <img id="current-profile-picture" src="${profilePictureSrc}" style="max-width: 200px;" alt="Current Profile Picture" />
+//                 </div>
+//                 <img id="profile-picture-preview" style="display:none; max-width: 200px;" alt="Profile Picture Preview" />
+//             ` : '<img id="profile-picture-preview" style="display:none;" />'}
+//             <button type="button" onclick="updateProfile()">Update Profile</button>
+//             <button type="button" onclick="renderPage()">Cancel</button>
+//         </form>
+//     `;
+// }
+
+// // Update profile
+// async function updateProfile() {
+//     if (!state.token) {
+//         showSnackbar("Please log in to update your profile.");
+//         return;
+//     }
+
+//     const form = document.getElementById("edit-profile-form");
+//     if (!form) {
+//         showSnackbar("Profile edit form is not available.");
+//         return;
+//     }
+
+//     const formData = new FormData(form);
+
+//     // Handle social links input
+//     let newSocialLinks = [];
+//     const socialLinksInput = formData.get("edit-social");
+//     if (socialLinksInput) {
+//         newSocialLinks = socialLinksInput
+//             .split(',')
+//             .map(link => link.trim())
+//             .filter(link => link); // Remove empty links
+//     }
+//     formData.set("social_links", JSON.stringify(newSocialLinks));
+
+//     const profileSection = document.getElementById("profile-section");
+//     const loadingMsg = document.createElement("p");
+//     loadingMsg.id = "loading-msg";
+//     loadingMsg.textContent = "Updating...";
+//     profileSection.appendChild(loadingMsg);
+
+//     try {
+//         const updatedProfile = await apiFetch('/profile', 'PUT', formData);
+
+//         if (!updatedProfile) {
+//             throw new Error("No response received for the profile update.");
+//         }
+
+//         // Update cached profile
+//         state.userProfile = updatedProfile;
+//         localStorage.setItem("userProfile", JSON.stringify(updatedProfile));
+
+//         showSnackbar("Profile updated successfully.");
+//         renderPage(); // Reload the page after update
+//     } catch (error) {
+//         console.error("Error updating profile:", error);
+//         showSnackbar(`Error updating profile: ${error.message || "Unknown error"}`);
+//     } finally {
+//         // Remove loading message
+//         loadingMsg.remove();
+//     }
+// }
+
+
+
+
+// // Update profile
+// async function updateProfile() {
+//     if (!state.token) {
+//         showSnackbar("Please log in to update your profile.");
+//         return;
+//     }
+
+//     const profileSection = document.getElementById("profile-section");
+//     const form = document.getElementById("edit-profile-form");
+
+//     if (!form) {
+//         showSnackbar("Profile edit form is not available.");
+//         return;
+//     }
+
+//     // Extract form inputs
+//     const formData = new FormData(form);
+//     const newUsername = formData.get("edit-username").trim();
+//     const newEmail = formData.get("edit-email").trim();
+//     const newBio = formData.get("edit-bio").trim();
+//     const newPhone = formData.get("edit-phone").trim();
+//     const socialLinksInput = formData.get("edit-social");
+
+//     let newSocialLinks = [];
+//     if (socialLinksInput) {
+//         newSocialLinks = socialLinksInput.split(',').map(link => link.trim()).filter(link => link);
+//     }
+//     formData.set("social_links", JSON.stringify(newSocialLinks));
+
+//     const profilePictureFile = formData.get("edit-profile-picture");
+
+//     // Validate inputs
+//     const errors = validateInputs([
+//         { value: newUsername, validator: isValidUsername, message: "Username must be between 3 and 20 characters." },
+//         { value: newEmail, validator: isValidEmail, message: "Please enter a valid email." }
+//     ]);
+
+//     if (errors) {
+//         handleError(errors);
+//         return;
+//     }
+
+//     const loadingMsg = document.createElement("p");
+//     loadingMsg.id = "loading-msg";
+//     loadingMsg.textContent = "Updating...";
+//     profileSection.appendChild(loadingMsg);
+
+//     try {
+//         const updateFormData = new FormData();
+//         updateFormData.append("username", newUsername);
+//         updateFormData.append("email", newEmail);
+//         updateFormData.append("bio", newBio);
+//         updateFormData.append("phone_number", newPhone);
+//         updateFormData.append("social_links", JSON.stringify(newSocialLinks));
+
+//         if (profilePictureFile) {
+//             updateFormData.append("profile_picture", profilePictureFile);
+//         }
+
+//         // API call to update profile
+//         const updatedProfile = await apiFetch('/profile', 'PUT', updateFormData);
+
+//         if (!updatedProfile) {
+//             throw new Error("No response received for the profile update.");
+//         }
+
+//         // Update cached profile in localStorage and state
+//         state.userProfile = updatedProfile;
+//         localStorage.setItem("userProfile", JSON.stringify(updatedProfile));
+
+//         showSnackbar("Profile updated successfully.");
+//         renderPage(); // Reload the page after the update
+
+//         // Optionally log activity
+//         // logActivity("updated profile");
+
+//     } catch (error) {
+//         console.error("Error updating profile:", error);
+//         handleError("Error updating profile. Please try again.");
+//     } finally {
+//         loadingMsg.remove();
+//     }
+// }
+
+// // Update profile (only send changed fields)
+// async function updateProfile() {
+//     if (!state.token) {
+//         showSnackbar("Please log in to update your profile.");
+//         return;
+//     }
+
+//     const profileSection = document.getElementById("profile-section");
+//     const form = document.getElementById("edit-profile-form");
+
+//     if (!form) {
+//         showSnackbar("Profile edit form is not available.");
+//         return;
+//     }
+
+//     // Get current profile data from the state
+//     const currentProfile = state.userProfile || {};
+
+//     // Extract form inputs
+//     const formData = new FormData(form);
+//     const newUsername = formData.get("edit-username").trim();
+//     const newEmail = formData.get("edit-email").trim();
+//     const newBio = formData.get("edit-bio").trim();
+//     const newPhone = formData.get("edit-phone").trim();
+//     const socialLinksInput = formData.get("edit-social");
+//     const profilePictureFile = document.getElementById("edit-profile-picture").files[0];
+
+//     // Process social links
+//     let newSocialLinks = [];
+//     if (socialLinksInput) {
+//         newSocialLinks = socialLinksInput
+//             .split(',')
+//             .map(link => link.trim())
+//             .filter(link => link);
+//     }
+
+//     // Determine which fields have changed
+//     const updatedFields = {};
+//     if (newUsername && newUsername !== currentProfile.username) {
+//         updatedFields.username = newUsername;
+//     }
+//     if (newEmail && newEmail !== currentProfile.email) {
+//         updatedFields.email = newEmail;
+//     }
+//     if (newBio && newBio !== currentProfile.bio) {
+//         updatedFields.bio = newBio;
+//     }
+//     if (newPhone && newPhone !== currentProfile.phone_number) {
+//         updatedFields.phone_number = newPhone;
+//     }
+//     if (
+//         JSON.stringify(newSocialLinks) !== JSON.stringify(currentProfile.socialLinks)
+//     ) {
+//         updatedFields.social_links = newSocialLinks;
+//     }
+//     if (profilePictureFile) {
+//         updatedFields.profile_picture = profilePictureFile;
+//     }
+
+//     // If no fields have changed, notify the user and exit
+//     if (Object.keys(updatedFields).length === 0) {
+//         showSnackbar("No changes were made to the profile.");
+//         return;
+//     }
+
+//     const loadingMsg = document.createElement("p");
+//     loadingMsg.id = "loading-msg";
+//     loadingMsg.textContent = "Updating...";
+//     profileSection.appendChild(loadingMsg);
+
+//     try {
+//         const updateFormData = new FormData();
+
+//         // Append only the changed fields to the FormData
+//         Object.entries(updatedFields).forEach(([key, value]) => {
+//             if (key === "social_links") {
+//                 updateFormData.append(key, JSON.stringify(value));
+//             } else {
+//                 updateFormData.append(key, value);
+//             }
+//         });
+
+//         // API call to update profile
+//         const updatedProfile = await apiFetch('/profile', 'PUT', updateFormData);
+
+//         if (!updatedProfile) {
+//             throw new Error("No response received for the profile update.");
+//         }
+
+//         // Update cached profile in state and localStorage
+//         state.userProfile = { ...currentProfile, ...updatedProfile };
+//         localStorage.setItem("userProfile", JSON.stringify(state.userProfile));
+
+//         showSnackbar("Profile updated successfully.");
+//         renderPage(); // Reload the page after the update
+
+//     } catch (error) {
+//         console.error("Error updating profile:", error);
+//         handleError("Error updating profile. Please try again.");
+//     } finally {
+//         loadingMsg.remove();
+//     }
+// }
+
+// Update profile (only send changed fields)
 async function updateProfile() {
     if (!state.token) {
         showSnackbar("Please log in to update your profile.");
         return;
     }
 
-    const formData = new FormData(document.getElementById("edit-profile-form"));
-    const newSocialLinks = formData.get("edit-social").split(',').map(link => link.trim());
-    formData.set("social_links", JSON.stringify(newSocialLinks));
-
     const profileSection = document.getElementById("profile-section");
-    profileSection.insertAdjacentHTML('beforeend', `<p id="loading-msg">Updating...</p>`);
+    const form = document.getElementById("edit-profile-form");
+
+    if (!form) {
+        showSnackbar("Profile edit form is not available.");
+        return;
+    }
+
+    // Get current profile data from the state
+    const currentProfile = state.userProfile || {};
+
+    // Extract form inputs
+    const formData = new FormData(form);
+
+    const newUsername = formData.get("edit-username")?.trim() || "";
+    const newEmail = formData.get("edit-email")?.trim() || "";
+    const newBio = formData.get("edit-bio")?.trim() || "";
+    const newPhone = formData.get("edit-phone")?.trim() || "";
+    const socialLinksInput = formData.get("edit-social") || "";
+    const profilePictureFile = document.getElementById("edit-profile-picture").files[0];
+
+    // Process social links
+    let newSocialLinks = [];
+    if (socialLinksInput) {
+        newSocialLinks = socialLinksInput
+            .split(',')
+            .map(link => link.trim())
+            .filter(link => link);
+    }
+
+    // Determine which fields have changed
+    const updatedFields = {};
+    if (newUsername && newUsername !== currentProfile.username) {
+        updatedFields.username = newUsername;
+    }
+    if (newEmail && newEmail !== currentProfile.email) {
+        updatedFields.email = newEmail;
+    }
+    if (newBio && newBio !== currentProfile.bio) {
+        updatedFields.bio = newBio;
+    }
+    if (newPhone && newPhone !== currentProfile.phone_number) {
+        updatedFields.phone_number = newPhone;
+    }
+    if (
+        JSON.stringify(newSocialLinks) !== JSON.stringify(currentProfile.socialLinks)
+    ) {
+        updatedFields.social_links = newSocialLinks;
+    }
+    if (profilePictureFile) {
+        updatedFields.profile_picture = profilePictureFile;
+    }
+
+    // If no fields have changed, notify the user and exit
+    if (Object.keys(updatedFields).length === 0) {
+        showSnackbar("No changes were made to the profile.");
+        return;
+    }
+
+    const loadingMsg = document.createElement("p");
+    loadingMsg.id = "loading-msg";
+    loadingMsg.textContent = "Updating...";
+    profileSection.appendChild(loadingMsg);
 
     try {
-        const updatedProfile = await apiFetch('/profile', 'PUT', formData);
+        const updateFormData = new FormData();
 
-        state.userProfile = updatedProfile; // Update cached profile
-        localStorage.setItem("userProfile", JSON.stringify(updatedProfile));
+        // Append only the changed fields to the FormData
+        Object.entries(updatedFields).forEach(([key, value]) => {
+            if (key === "social_links") {
+                updateFormData.append(key, JSON.stringify(value));
+            } else {
+                updateFormData.append(key, value);
+            }
+        });
+
+        // API call to update profile
+        const updatedProfile = await apiFetch('/profile', 'PUT', updateFormData);
+
+        if (!updatedProfile) {
+            throw new Error("No response received for the profile update.");
+        }
+
+        // Update cached profile in state and localStorage
+        state.userProfile = { ...currentProfile, ...updatedProfile };
+        localStorage.setItem("userProfile", JSON.stringify(state.userProfile));
 
         showSnackbar("Profile updated successfully.");
-        renderPage(); // Reload the page after update
+        renderPage(); // Reload the page after the update
+
     } catch (error) {
         console.error("Error updating profile:", error);
-        showSnackbar("Error updating profile.");
+        handleError("Error updating profile. Please try again.");
     } finally {
-        document.getElementById("loading-msg")?.remove();
+        loadingMsg.remove();
     }
 }
+
+
+// // Update profile
+// async function updateProfile() {
+//     if (!state.token) {
+//         showSnackbar("Please log in to update your profile.");
+//         return;
+//     }
+
+//     const formData = new FormData(document.getElementById("edit-profile-form"));
+//     const newSocialLinks = formData.get("edit-social").split(',').map(link => link.trim());
+//     formData.set("social_links", JSON.stringify(newSocialLinks));
+
+//     const profileSection = document.getElementById("profile-section");
+//     profileSection.insertAdjacentHTML('beforeend', `<p id="loading-msg">Updating...</p>`);
+
+//     try {
+//         const updatedProfile = await apiFetch('/profile', 'PUT', formData);
+
+//         state.userProfile = updatedProfile; // Update cached profile
+//         localStorage.setItem("userProfile", JSON.stringify(updatedProfile));
+
+//         showSnackbar("Profile updated successfully.");
+//         renderPage(); // Reload the page after update
+//     } catch (error) {
+//         console.error("Error updating profile:", error);
+//         showSnackbar("Error updating profile.");
+//     } finally {
+//         document.getElementById("loading-msg")?.remove();
+//     }
+// }
 
 // Preview profile picture
 function previewProfilePicture(event) {
@@ -360,7 +784,7 @@ async function deleteProfile() {
     try {
         await apiFetch('/profile', 'DELETE');
         showSnackbar("Profile deleted successfully.");
-        window.logout();
+        logout();
     } catch (error) {
         showSnackbar(`Failed to delete profile: ${error.message}`);
     }

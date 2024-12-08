@@ -209,9 +209,9 @@ button.next {
     border-radius: 50%;
 }
 
-.profile-thumb {
+/* .profile-thumb {
     display: none;
-}
+} */
 
 .logout-btn {
     background-color: wheat;
@@ -402,27 +402,6 @@ main.feed {
     /* gap: 15px; */
 }
 
-/* .timeline-item {
-    background: #fff;
-    border: 1px solid #ddd;
-    border-radius: 10px;
-    padding: 15px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    position: relative;
-} */
-
-.timeline-item::after {
-    content: '';
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    width: 30px;
-    height: 30px;
-    background: var(--after-bg);
-    background-size: cover;
-    border-radius: 50%;
-}
-
 .post-header {
     display: flex;
     align-items: center;
@@ -431,11 +410,18 @@ main.feed {
 }
 
 .profile-thumb {
-    width: 50px;
-    height: 50px;
+    width: 4rem;
+    height: 4rem;
+    display: block;
+    top: 1rem;
+    position: absolute;
+    left: -1rem;
     border-radius: 50%;
-    object-fit: cover;
-    border: 2px solid #ddd;
+    content: "";
+    border: 2px solid rgba(0, 0, 0, 0.3);
+    background: white;
+    background-size: cover;
+    background-position: center;
 }
 
 .usertim {
@@ -723,8 +709,8 @@ section.navbar {
 
 .nav-link {
     text-decoration: none;
-    color: #333;
-    font-size: 1rem;
+    font-size: 1.2rem;
+    color: #fff;
     letter-spacing: 1px;
     padding: 8px 16px;
     transition: all 0.3s ease;
@@ -732,7 +718,7 @@ section.navbar {
 
 .nav-link:hover {
     background-color: #ffeb3b;
-    color: #fff;
+    color: #333;
     border-radius: 5px;
 }
 
@@ -1097,7 +1083,7 @@ button {
     font-weight: 700;
     font-size: 0.8rem;
 }
-
+/* 
 .timeline-item::after {
     width: 4rem;
     height: 4rem;
@@ -1111,7 +1097,7 @@ button {
     background: white;
     background-size: cover;
     background-position: center;
-}
+} */
 
 /*   
   .timeline-item::after {

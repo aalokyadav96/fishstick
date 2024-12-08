@@ -46,7 +46,7 @@ function displayNewTicket(ticketData) {
 
     ticketItem.innerHTML = `
         <div class="hflex">
-            <h3>Name: ${sanitize(ticketData.name)}</h3>
+            <h3>Name: ${ticketData.name}</h3>
             <p>Price: $${(ticketData.price / 100).toFixed(2)}</p>
             <p>Available: ${ticketData.quantity}</p>
         </div>

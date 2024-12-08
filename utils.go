@@ -126,11 +126,3 @@ func sendResponse(w http.ResponseWriter, status int, data interface{}, message s
 // 	}
 
 // }
-
-// func createIndexes(collection *mongo.Collection) error {
-// 	indexModel := mongo.IndexModel{
-// 		Keys: bson.D{{Key: "timestamp", Value: -1}}, // Sort descending by timestamp
-// 	}
-// 	_, err := collection.Indexes().CreateOne(context.Background(), indexModel)
-// 	return err
-// }

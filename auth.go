@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -12,6 +15,16 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"golang.org/x/crypto/bcrypt"
+)
+
+const (
+	refreshTokenTTL = 7 * 24 * time.Hour // 7 days
+	accessTokenTTL  = 15 * time.Minute   // 15 minutes
+)
+
+var (
+	// tokenSigningAlgo = jwt.SigningMethodHS256
+	jwtSecret = []byte("your_secret_key") // Replace with a secure secret key
 )
 
 // JWT claims
@@ -76,6 +89,25 @@ func login(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		return
 	}
 
+	refreshToken, err := generateRefreshToken()
+	if err != nil {
+		http.Error(w, "Error generating refresh token", http.StatusInternalServerError)
+		return
+	}
+
+	collection := client.Database("eventdb").Collection("users")
+	// Hash the refresh token
+	hashedRefreshToken := hashToken(refreshToken)
+	_, err = collection.UpdateOne(
+		context.TODO(),
+		bson.M{"userid": storedUser.UserID},
+		bson.M{"$set": bson.M{"refresh_token": hashedRefreshToken, "refresh_expiry": time.Now().Add(refreshTokenTTL)}},
+	)
+	if err != nil {
+		http.Error(w, "Error storing refresh token", http.StatusInternalServerError)
+		return
+	}
+
 	// Cache the token in Redis (only cache if login is successful)
 	err = RdxHset("tokki", claims.UserID, tokenString)
 	if err != nil {
@@ -84,7 +116,7 @@ func login(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	}
 
 	// Send response with the token
-	sendResponse(w, http.StatusOK, map[string]string{"token": tokenString, "userid": storedUser.UserID}, "Login successful", nil)
+	sendResponse(w, http.StatusOK, map[string]string{"token": tokenString, "refreshToken": refreshToken, "userid": storedUser.UserID}, "Login successful", nil)
 }
 
 func register(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
@@ -280,4 +312,21 @@ func refreshToken(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	} else {
 		http.Error(w, "Token refresh not allowed yet", http.StatusForbidden)
 	}
+}
+
+// Generates a random refresh token
+func generateRefreshToken() (string, error) {
+	tokenBytes := make([]byte, 32)
+	_, err := rand.Read(tokenBytes)
+	if err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(tokenBytes), nil
+}
+
+// Hashes a given token
+func hashToken(token string) string {
+	hash := sha256.New()
+	hash.Write([]byte(token))
+	return hex.EncodeToString(hash.Sum(nil))
 }

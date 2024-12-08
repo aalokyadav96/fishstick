@@ -279,10 +279,6 @@ func buyTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	})
 }
 
-type Seat struct {
-	Status string
-}
-
 // Book Seats Handler
 func bookSeats(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	var requestBody struct {

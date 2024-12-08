@@ -12,6 +12,13 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
+// // JWT claims
+// type Claims struct {
+// 	Username string `json:"username"`
+// 	UserID   string `json:"userId"`
+// 	jwt.RegisteredClaims
+// }
+
 func logActivity(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	tokenString := r.Header.Get("Authorization")
 	if len(tokenString) < 8 {

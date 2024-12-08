@@ -1,5 +1,6 @@
 import { state } from "../state/state.js";
 import { apiFetch } from "../api/api.js";
+import { navigate } from "../routes/render.js";
 import { showSnackbar } from "../utils/utils.js";
 import { generateFeedHTML } from "../components/templates/tweetform.js";
 
@@ -275,33 +276,36 @@ function renderNewPost(post, i) {
     // Append the Lightbox HTML only once
     if (!document.getElementById("lightbox")) {
         postsContainer.insertAdjacentHTML('beforebegin', `
-            <!-- Lightbox HTML -->
             <div id="lightbox" class="lightbox" style="display: none;">
-                <span class="close" onclick="closesLightbox()">&times;</span>
+                <span id="lightbox-close" class="close">&times;</span>
                 <div class="lightbox-content">
                     <img id="lightbox-image" src="" alt="Lightbox Image" />
-                    <div class="lightbox-caption" id="lightbox-caption"></div>
+                    <div id="lightbox-caption" class="lightbox-caption"></div>
                 </div>
-                <button class="prev" onclick="changesImage(-1)">❮</button>
-                <button class="next" onclick="changesImage(1)">❯</button>
+                <button id="lightbox-prev" class="prev">❮</button>
+                <button id="lightbox-next" class="next">❯</button>
             </div>
         `);
+
+        // Attach lightbox navigation and close events
+        document.getElementById("lightbox-close").addEventListener("click", closesLightbox);
+        document.getElementById("lightbox-prev").addEventListener("click", () => changesImage(-1));
+        document.getElementById("lightbox-next").addEventListener("click", () => changesImage(1));
     }
 
     // Create the post element
-    // const postElement = document.createElement('div');
-    // postElement.classList.add('post');
     const postElement = document.createElement('article');
     postElement.classList.add('timeline-item');
     postElement.setAttribute('date-is', new Date(post.timestamp).toLocaleString());
 
-
     // Post header
     postElement.innerHTML = `
         <div class="post-header hflex">
-            <a class="uzthcon" href="/user/${post.username}"><img src="/userpic/thumb/${post.userid + ".jpg" || 'default.png'}" alt="Profile Picture" class="profile-thumb"/></a>
+            <a class="uzthcon" href="/user/${post.username}">
+                <img src="/userpic/thumb/${post.userid + ".jpg" || 'default.png'}" alt="Profile Picture" class="profile-thumb" />
+            </a>
             <div class="usertim">
-                <div class="username">${post.username}</div>
+            <div class="username">${post.username}</div>
             </div>
         </div>
     `;
@@ -327,54 +331,191 @@ function renderNewPost(post, i) {
         const classIndex = Math.min(media.length - 1, mediaClasses.length - 1);
         const assignedClass = mediaClasses[classIndex];
 
-        const imageHTML = media.map((img, index) => `
-            <li class="PostPreviewImageView_image_item__dzD2P">
-                <img src="./postpic/${img}.jpg" alt="Post Image" class="post-image PostPreviewImageView_post_image__zLzXH" onclick='opensLightbox("${img}", ${media.length}, ${index}, ${JSON.stringify(media)})'/>
-            </li>
-        `).join('');
+        const imageList = document.createElement('ul');
+        imageList.className = `preview_image_wrap__Q29V8 PostPreviewImageView_-artist__WkyUA PostPreviewImageView_-bottom_radius__Mmn-- ${assignedClass}`;
+        media.forEach((img, index) => {
+            const listItem = document.createElement('li');
+            listItem.className = 'PostPreviewImageView_image_item__dzD2P';
 
-        postElement.innerHTML += `
-            <div class="post-media">
-                <div>
-                    <ul class="preview_image_wrap__Q29V8 PostPreviewImageView_-artist__WkyUA PostPreviewImageView_-bottom_radius__Mmn-- ${assignedClass}">
-                        ${imageHTML}
-                    </ul>
-                </div>
-            </div>
-        `;
+            const image = document.createElement('img');
+            image.src = `./postpic/${img}.jpg`;
+            image.alt = "Post Image";
+            image.className = 'post-image PostPreviewImageView_post_image__zLzXH';
+            image.addEventListener("click", () => opensLightbox(img, media.length, index, media));
+
+            listItem.appendChild(image);
+            imageList.appendChild(listItem);
+        });
+
+        const mediaContainer = document.createElement('div');
+        mediaContainer.className = 'post-media';
+        mediaContainer.appendChild(imageList);
+
+        postElement.appendChild(mediaContainer);
     }
-
 
     // Handle video posts
     if (post.type === "video" && media.length > 0) {
-        const videoHTML = media.map(video => `<video src="${video}" class="post-video" onclick="playpause(this);"></video>`).join('');
-        postElement.innerHTML += `<div class="post-media">${videoHTML}</div>`;
+        const mediaContainer = document.createElement('div');
+        mediaContainer.className = 'post-media';
+
+        media.forEach(videoSrc => {
+            const video = document.createElement('video');
+            video.src = videoSrc;
+            video.className = 'post-video';
+            video.addEventListener("click", () => {
+                video.paused ? video.play() : video.pause();
+            });
+
+            mediaContainer.appendChild(video);
+        });
+
+        postElement.appendChild(mediaContainer);
     }
-    function playpause(video) {
-    if (video.paused) {
-        video.play();
-    } else {
-        video.pause();
-    }
-    }
-    window.playpause=playpause;
+
     // Actions
-    postElement.innerHTML += `
-        <div class="post-actions">
-            ${isLoggedIn ? `
-                <span class="like">Like (${post.likes})</span>
-                <span class="comment">Comment</span>
-                ${isCreator ? `<button class="delete-btn" onclick="deletePost('${post.id}');">Delete</button>` : ''}
-            ` : ''}
-        </div>
-    `;
+    const actionsContainer = document.createElement('div');
+    actionsContainer.className = 'post-actions';
+
+    if (isLoggedIn) {
+        const likeButton = document.createElement('span');
+        likeButton.className = 'like';
+        likeButton.textContent = `Like (${post.likes})`;
+
+        const commentButton = document.createElement('span');
+        commentButton.className = 'comment';
+        commentButton.textContent = "Comment";
+
+        actionsContainer.appendChild(likeButton);
+        actionsContainer.appendChild(commentButton);
+
+        if (isCreator) {
+            const deleteButton = document.createElement('button');
+            deleteButton.className = 'delete-btn';
+            deleteButton.textContent = "Delete";
+            deleteButton.addEventListener("click", () => deletePost(post.id));
+
+            actionsContainer.appendChild(deleteButton);
+        }
+    }
+
+    postElement.appendChild(actionsContainer);
 
     // Append the post
-    postsContainer.appendChild(postElement);
     i ? postsContainer.appendChild(postElement) : postsContainer.prepend(postElement);
 
     after();
 }
+
+// function renderNewPost(post, i) {
+//     const postsContainer = document.getElementById("postsContainer");
+//     const media = Array.isArray(post.media) ? post.media : [];
+//     const isLoggedIn = state.token;
+//     const isCreator = isLoggedIn && state.user === post.userid;
+
+//     // Append the Lightbox HTML only once
+//     if (!document.getElementById("lightbox")) {
+//         postsContainer.insertAdjacentHTML('beforebegin', `
+//             <!-- Lightbox HTML -->
+//             <div id="lightbox" class="lightbox" style="display: none;">
+//                 <span class="close" onclick="closesLightbox()">&times;</span>
+//                 <div class="lightbox-content">
+//                     <img id="lightbox-image" src="" alt="Lightbox Image" />
+//                     <div class="lightbox-caption" id="lightbox-caption"></div>
+//                 </div>
+//                 <button class="prev" onclick="changesImage(-1)">❮</button>
+//                 <button class="next" onclick="changesImage(1)">❯</button>
+//             </div>
+//         `);
+//     }
+
+//     // Create the post element
+//     // const postElement = document.createElement('div');
+//     // postElement.classList.add('post');
+//     const postElement = document.createElement('article');
+//     postElement.classList.add('timeline-item');
+//     postElement.setAttribute('date-is', new Date(post.timestamp).toLocaleString());
+
+
+//     // Post header
+//     postElement.innerHTML = `
+//         <div class="post-header hflex">
+//             <a class="uzthcon" href="/user/${post.username}"><img src="/userpic/thumb/${post.userid + ".jpg" || 'default.png'}" alt="Profile Picture" class="profile-thumb"/></a>
+//             <div class="usertim">
+//                 <div class="username">${post.username}</div>
+//             </div>
+//         </div>
+//     `;
+
+//     // Handle text posts
+//     if (post.type === "text") {
+//         postElement.innerHTML += `<div class="post-text">${post.text}</div>`;
+//     }
+
+//     // Handle image posts
+//     if (post.type === "image" && media.length > 0) {
+//         const mediaClasses = [
+//             'PostPreviewImageView_-one__-6MMx',
+//             'PostPreviewImageView_-two__WP8GL',
+//             'PostPreviewImageView_-three__HLsVN',
+//             'PostPreviewImageView_-four__fYIRN',
+//             'PostPreviewImageView_-five__RZvWx',
+//             'PostPreviewImageView_-six__EG45r',
+//             'PostPreviewImageView_-seven__65gnj',
+//             'PostPreviewImageView_-eight__SoycA'
+//         ];
+
+//         const classIndex = Math.min(media.length - 1, mediaClasses.length - 1);
+//         const assignedClass = mediaClasses[classIndex];
+
+//         const imageHTML = media.map((img, index) => `
+//             <li class="PostPreviewImageView_image_item__dzD2P">
+//                 <img src="./postpic/${img}.jpg" alt="Post Image" class="post-image PostPreviewImageView_post_image__zLzXH" onclick='opensLightbox("${img}", ${media.length}, ${index}, ${JSON.stringify(media)})'/>
+//             </li>
+//         `).join('');
+
+//         postElement.innerHTML += `
+//             <div class="post-media">
+//                 <div>
+//                     <ul class="preview_image_wrap__Q29V8 PostPreviewImageView_-artist__WkyUA PostPreviewImageView_-bottom_radius__Mmn-- ${assignedClass}">
+//                         ${imageHTML}
+//                     </ul>
+//                 </div>
+//             </div>
+//         `;
+//     }
+
+
+//     // Handle video posts
+//     if (post.type === "video" && media.length > 0) {
+//         const videoHTML = media.map(video => `<video src="${video}" class="post-video" onclick="playpause(this);"></video>`).join('');
+//         postElement.innerHTML += `<div class="post-media">${videoHTML}</div>`;
+//     }
+//     function playpause(video) {
+//     if (video.paused) {
+//         video.play();
+//     } else {
+//         video.pause();
+//     }
+//     }
+//     window.playpause=playpause;
+//     // Actions
+//     postElement.innerHTML += `
+//         <div class="post-actions">
+//             ${isLoggedIn ? `
+//                 <span class="like">Like (${post.likes})</span>
+//                 <span class="comment">Comment</span>
+//                 ${isCreator ? `<button class="delete-btn" onclick="deletePost('${post.id}');">Delete</button>` : ''}
+//             ` : ''}
+//         </div>
+//     `;
+
+//     // Append the post
+//     postsContainer.appendChild(postElement);
+//     i ? postsContainer.appendChild(postElement) : postsContainer.prepend(postElement);
+
+//     after();
+// }
 
 
 function after() {

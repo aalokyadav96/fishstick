@@ -316,11 +316,6 @@ func deletePlace(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 }
 
 /***************************************************/
-type Suggestion struct {
-	ID   int    `json:"id"`
-	Name string `json:"name"`
-}
-
 func getPlaceSuggestions(ctx context.Context, query string) ([]Suggestion, error) {
 	var suggestions []Suggestion
 

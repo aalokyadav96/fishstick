@@ -143,7 +143,7 @@ func main() {
 	// CORS setup
 
 	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"https://showsaw.netlify.app/", "http://localhost:4000"},
+		AllowedOrigins:   []string{"*"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Content-Type", "Authorization"},
 		AllowCredentials: true,
@@ -205,7 +205,6 @@ func securityHeaders(next http.Handler) http.Handler {
 var (
 	client         *mongo.Client
 	userCollection *mongo.Collection
-	jwtSecret      = []byte("your_secret_key") // Replace with your secret key
 )
 
 // // Initialize MongoDB connection

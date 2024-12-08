@@ -1,6 +1,7 @@
 import { state } from "../state/state.js";
 import { apiFetch } from "../api/api.js";
 import { showSnackbar } from "../utils/utils.js";
+import { navigate } from "../routes/render.js";
 
 async function createPlace() {
     if (!state.token) {

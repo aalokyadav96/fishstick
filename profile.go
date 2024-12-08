@@ -3,17 +3,14 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"image"
-	"image/jpeg"
 	"io"
 	"log"
 	"net/http"
 	"os"
 
+	"github.com/disintegration/imaging"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/julienschmidt/httprouter"
-	"github.com/nfnt/resize"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"golang.org/x/crypto/bcrypt"
@@ -212,42 +209,15 @@ func editProfile(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 // createThumbnail creates a thumbnail of the image at inputPath and saves it at outputPath.
 func createThumbnail(inputPath, outputPath string) error {
+	width := 100
+	height := 100
 
-	log.Println("inputpath : ", inputPath)
-	log.Println("outputpath : ", outputPath)
-	// Open the original image
-	file, err := os.Open(inputPath)
+	img, err := imaging.Open(inputPath)
 	if err != nil {
-		return fmt.Errorf("failed to open input image: %v", err)
+		return err
 	}
-	defer file.Close()
-	log.Println("input file was opened : ")
-
-	// Decode the image
-	img, _, err := image.Decode(file)
-	if err != nil {
-		log.Println("input file was not decoded ", err)
-		return fmt.Errorf("failed to decode image: %v", err)
-	}
-	log.Println("input file was decoded : ")
-
-	// Resize the image to a thumbnail size (e.g., 100x100 pixels)
-	thumbnail := resize.Thumbnail(100, 100, img, resize.Lanczos3)
-
-	// Create the output file for the thumbnail
-	out, err := os.Create(outputPath)
-	if err != nil {
-		return fmt.Errorf("failed to create thumbnail file: %v", err)
-	}
-	defer out.Close()
-
-	// Encode and save the thumbnail as a JPEG image
-	err = jpeg.Encode(out, thumbnail, nil)
-	if err != nil {
-		return fmt.Errorf("failed to save thumbnail image: %v", err)
-	}
-
-	return nil
+	resizedImg := imaging.Resize(img, width, height, imaging.Lanczos)
+	return imaging.Save(resizedImg, outputPath)
 }
 
 func getProfile(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {

@@ -2,10 +2,12 @@ package main
 
 import (
 	"time"
+
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type User struct {
-	ID          string    `json:"-" bson:"_id,omitempty"`
+	// ID          string    `json:"-" bson:"_id,omitempty"`
 	UserID      string    `json:"userid" bson:"userid"`
 	Username    string    `json:"username" bson:"username"`
 	Email       string    `json:"email" bson:"email"`
@@ -19,16 +21,19 @@ type User struct {
 
 	Preferences Preferences `json:"preferences,omitempty" bson:"preferences,omitempty"`
 
-	IsActive       bool              `json:"is_active" bson:"is_active"`
-	LastLogin      time.Time         `json:"last_login,omitempty" bson:"last_login,omitempty"`
-	ProfilePicture string            `json:"profile_picture" bson:"profile_picture"`
-	ProfileViews   int               `json:"profile_views,omitempty" bson:"profile_views,omitempty"`
-	Address        string            `json:"address,omitempty" bson:"address,omitempty"`
-	DateOfBirth    time.Time         `json:"date_of_birth,omitempty" bson:"date_of_birth,omitempty"`
-	SocialLinks    map[string]string `json:"social_links,omitempty" bson:"social_links,omitempty"`
-	IsVerified     bool              `json:"is_verified" bson:"is_verified"`
-	Follows        []string          `json:"follows,omitempty" bson:"follows,omitempty"`
-	Followers      []string          `json:"followers,omitempty" bson:"followers,omitempty"`
+	IsActive       bool                 `json:"is_active" bson:"is_active"`
+	LastLogin      time.Time            `json:"last_login,omitempty" bson:"last_login,omitempty"`
+	ProfilePicture string               `json:"profile_picture" bson:"profile_picture"`
+	ProfileViews   int                  `json:"profile_views,omitempty" bson:"profile_views,omitempty"`
+	Address        string               `json:"address,omitempty" bson:"address,omitempty"`
+	DateOfBirth    time.Time            `json:"date_of_birth,omitempty" bson:"date_of_birth,omitempty"`
+	SocialLinks    map[string]string    `json:"social_links,omitempty" bson:"social_links,omitempty"`
+	IsVerified     bool                 `json:"is_verified" bson:"is_verified"`
+	Follows        []string             `json:"follows,omitempty" bson:"follows,omitempty"`
+	Followers      []string             `json:"followers,omitempty" bson:"followers,omitempty"`
+	PasswordHash   string               `json:"password_hash" bson:"password_hash"`
+	ProfilePic     string               `json:"profile_pic,omitempty" bson:"profile_pic,omitempty"`
+	Following      []primitive.ObjectID `json:"following" bson:"following"`
 }
 
 // UserProfileResponse defines the structure for the user profile response
@@ -63,21 +68,20 @@ type Preferences struct {
 }
 
 type Merch struct {
-	MerchID    string  `json:"merchid" bson:"merchid"`
-	EventID    string  `json:"eventid" bson:"eventid"` // Reference to Event ID
-	Name       string  `json:"name" bson:"name"`
-	Price      float64 `json:"price" bson:"price"`
-	Stock      int     `json:"stock" bson:"stock"` // Number of items available
-	MerchPhoto string  `json:"merch_pic" bson:"merch_pic"`
+	MerchID     string             `json:"merchid" bson:"merchid"`
+	EventID     string             `json:"eventid" bson:"eventid"` // Reference to Event ID
+	Name        string             `json:"name" bson:"name"`
+	Price       float64            `json:"price" bson:"price"`
+	Stock       int                `json:"stock" bson:"stock"` // Number of items available
+	MerchPhoto  string             `json:"merch_pic" bson:"merch_pic"`
+	ID          primitive.ObjectID `json:"id" bson:"_id,omitempty"`
+	EntityID    primitive.ObjectID `json:"entity_id" bson:"entity_id"`
+	EntityType  string             `json:"entity_type" bson:"entity_type"` // "event" or "place"
+	Description string             `json:"description,omitempty" bson:"description,omitempty"`
+	CreatedAt   time.Time          `json:"created_at" bson:"created_at"`
+	UserID      primitive.ObjectID `bson:"user_id" json:"userId"`
+	UpdatedAt   time.Time          `bson:"updated_at" json:"updatedAt"`
 }
-
-// type Post struct {
-// 	PostID    string  `json:"postid" bson:"postid"`
-// 	Name      string  `json:"name" bson:"name"`
-// 	Price     float64 `json:"price" bson:"price"`
-// 	Stock     int     `json:"stock" bson:"stock"` // Number of items available
-// 	PostPhoto string  `json:"post_pic" bson:"post_pic"`
-// }
 
 type Post struct {
 	ID        interface{} `bson:"_id,omitempty" json:"id"`
@@ -87,44 +91,29 @@ type Post struct {
 	Type      string      `bson:"type" json:"type"`   // Post type (e.g., "text", "image", "video", "blog", etc.)
 	Media     []string    `bson:"media" json:"media"` // Media URLs (images, videos, etc.)
 	Timestamp string      `bson:"timestamp" json:"timestamp"`
-	Likes     int         `bson:"likes" json:"likes"`
+	// Likes      int         `bson:"likes" json:"likes"`
+	LikesCount int `bson:"likescount" json:"likescount"`
+	// ID         primitive.ObjectID   `json:"id" bson:"_id,omitempty"`
+	Content   string               `json:"content" bson:"content"`
+	MediaURL  string               `json:"media_url,omitempty" bson:"media_url,omitempty"`
+	Likers    []primitive.ObjectID `json:"likers" bson:"likers"`
+	CreatedAt time.Time            `json:"created_at" bson:"created_at"`
 }
 
-// type Event struct {
-// 	EventID     string `json:"eventid" bson:"eventid"`
-// 	Title       string `json:"title" bson:"title"`
-// 	Description string `json:"description" bson:"description"`
-// 	Place       string `json:"place" bson:"place"`
-// 	Date        string `json:"date" bson:"date"`
-// 	// Date        time.Time `json:"date" bson:"date"`
-
-// 	Location string `json:"location" bson:"location"`
-// 	// Address   string `json:"address" bson:"address"`
-// 	CreatorID string `json:"creatorid" bson:"creatorid"`
-
-// 	OrganizerName    string `json:"organizer_name" bson:"organizer_name"`
-// 	OrganizerContact string `json:"organizer_contact" bson:"organizer_contact"`
-
-// 	Tickets []Ticket `json:"tickets" bson:"tickets"`
-// 	Media   []Media  `json:"media" bson:"media"`
-// 	Merch   []Merch  `json:"merch" bson:"merch"`
-
-// 	StartDateTime time.Time `json:"start_date_time" bson:"start_date_time"`
-// 	EndDateTime   time.Time `json:"end_date_time" bson:"end_date_time"`
-
-// 	Category          string `json:"category" bson:"category"`
-// 	BannerImage       string `json:"banner_image" bson:"banner_image"`
-// 	WebsiteURL        string `json:"website_url" bson:"website_url"`
-// 	Status            string `json:"status" bson:"status"`
-// 	AccessibilityInfo string `json:"accessibility_info" bson:"accessibility_info"`
-
-// 	Reviews          []Review               `json:"reviews" bson:"reviews"`
-// 	SocialMediaLinks []string               `json:"social_media_links" bson:"social_media_links"`
-// 	Tags             []string               `json:"tags" bson:"tags"`
-// 	CustomFields     map[string]interface{} `json:"custom_fields" bson:"custom_fields"`
-
-// 	CreatedAt time.Time `json:"created_at" bson:"created_at"`
-// 	UpdatedAt time.Time `json:"updated_at" bson:"updated_at"`
+// type Post struct {
+// 	ID         interface{} `bson:"_id,omitempty" json:"id"`
+// 	UserID     string      `json:"userid" bson:"userid"`
+// 	Username   string      `bson:"username" json:"username"`
+// 	Text       string      `bson:"text" json:"text"`
+// 	Type       string      `bson:"type" json:"type"`   // Post type (e.g., "text", "image", "video", "blog", etc.)
+// 	Media      []string    `bson:"media" json:"media"` // Media URLs (images, videos, etc.)
+// 	Timestamp  string      `bson:"timestamp" json:"timestamp"`
+// 	LikesCount int         `bson:"likescount" json:"likescount"`
+// 	// ID         primitive.ObjectID   `json:"id" bson:"_id,omitempty"`
+// 	Content   string               `json:"content" bson:"content"`
+// 	MediaURL  string               `json:"media_url,omitempty" bson:"media_url,omitempty"`
+// 	Likes     []primitive.ObjectID `json:"likes" bson:"likes"`
+// 	CreatedAt time.Time            `json:"created_at" bson:"created_at"`
 // }
 
 type Event struct {
@@ -226,14 +215,19 @@ type Tweet struct {
 }
 
 type Activity struct {
-	Username    string    `json:"username" bson:"username"`
-	PlaceID     string    `json:"placeId,omitempty" bson:"placeId,omitempty"`
-	Action      string    `json:"action,omitempty" bson:"action,omitempty"`
-	PerformedBy string    `json:"performedBy,omitempty" bson:"performedBy,omitempty"`
-	Timestamp   time.Time `json:"timestamp,omitempty" bson:"timestamp,omitempty"`
-	Details     string    `json:"details,omitempty" bson:"details,omitempty"`
-	IPAddress   string    `json:"ipAddress,omitempty" bson:"ipAddress,omitempty"`
-	DeviceInfo  string    `json:"deviceInfo,omitempty" bson:"deviceInfo,omitempty"`
+	Username     string              `json:"username,omitempty" bson:"username,omitempty"`
+	PlaceID      string              `json:"placeId,omitempty" bson:"placeId,omitempty"`
+	Action       string              `json:"action,omitempty" bson:"action,omitempty"`
+	PerformedBy  string              `json:"performedBy,omitempty" bson:"performedBy,omitempty"`
+	Timestamp    time.Time           `json:"timestamp,omitempty" bson:"timestamp,omitempty"`
+	Details      string              `json:"details,omitempty" bson:"details,omitempty"`
+	IPAddress    string              `json:"ipAddress,omitempty" bson:"ipAddress,omitempty"`
+	DeviceInfo   string              `json:"deviceInfo,omitempty" bson:"deviceInfo,omitempty"`
+	ID           primitive.ObjectID  `json:"id" bson:"_id,omitempty"`
+	UserID       primitive.ObjectID  `json:"user_id" bson:"user_id"`
+	ActivityType string              `json:"activity_type" bson:"activity_type"` // e.g., "follow", "review", "buy"
+	EntityID     *primitive.ObjectID `json:"entity_id,omitempty" bson:"entity_id,omitempty"`
+	EntityType   *string             `json:"entity_type,omitempty" bson:"entity_type,omitempty"` // "event", "place", or null
 }
 
 type Response struct {
@@ -242,38 +236,48 @@ type Response struct {
 	Error   string      `json:"error,omitempty"`
 }
 
-// type Review struct {
-// 	ReviewID    string    `json:"reviewid" bson:"reviewid"`
-// 	EventID     string    `json:"eventid" bson:"eventid"` // Reference to Event ID
-// 	UserID      string    `json:"userid" bson:"userid"`   // Reference to User ID
-// 	Rating      int       `json:"rating" bson:"rating"`   // Rating out of 5
-// 	Comment     string    `json:"comment" bson:"comment"` // Review comment
-// 	Date        string    `json:"date" bson:"date"`       // Date of the review
-// 	Likes       int       `json:"likes,omitempty" bson:"likes,omitempty"`
-// 	Dislikes    int       `json:"dislikes,omitempty" bson:"dislikes,omitempty"`
-// 	Attachments []Media   `json:"attachments,omitempty" bson:"attachments,omitempty"`
-// 	CreatedAt   time.Time `json:"createdAt,omitempty" bson:"createdAt,omitempty"`
-// }
+type Review struct {
+	ID          primitive.ObjectID `json:"id" bson:"_id,omitempty"`
+	EntityID    primitive.ObjectID `json:"entity_id" bson:"entity_id"`
+	EntityType  string             `json:"entity_type" bson:"entity_type"` // "event" or "place"
+	Reviewer    primitive.ObjectID `json:"reviewer" bson:"reviewer"`
+	Comment     string             `json:"comment,omitempty" bson:"comment,omitempty"`
+	UpdatedAt   time.Time          `json:"updated_at" bson:"updated_at"`
+	Content     string             `bson:"content" json:"content"`
+	ReviewID    string             `json:"reviewid" bson:"reviewid"`
+	EventID     string             `json:"eventid" bson:"eventid"` // Reference to Event ID
+	UserID      string             `json:"userid" bson:"userid"`   // Reference to User ID
+	Rating      int                `json:"rating" bson:"rating"`   // Rating out of 5
+	Date        string             `json:"date" bson:"date"`       // Date of the review
+	Likes       int                `json:"likes,omitempty" bson:"likes,omitempty"`
+	Dislikes    int                `json:"dislikes,omitempty" bson:"dislikes,omitempty"`
+	Attachments []Media            `json:"attachments,omitempty" bson:"attachments,omitempty"`
+	CreatedAt   time.Time          `json:"createdAt,omitempty" bson:"createdAt,omitempty"`
+}
 
 type Media struct {
-	ID            string    `json:"id" bson:"id"`
-	EventID       string    `json:"eventid" bson:"eventid"`
-	Type          string    `json:"type" bson:"type"`
-	URL           string    `json:"url" bson:"url"`
-	ThumbnailURL  string    `json:"thumbnailUrl,omitempty" bson:"thumbnailUrl,omitempty"`
-	Caption       string    `json:"caption" bson:"caption"`
-	Description   string    `json:"description,omitempty" bson:"description,omitempty"`
-	CreatorID     string    `json:"creatorid" bson:"creatorid"`
-	CreatedAt     time.Time `json:"createdAt" bson:"createdAt"`
-	UpdatedAt     time.Time `json:"updatedAt,omitempty" bson:"updatedAt,omitempty"`
-	LikesCount    int       `json:"likesCount" bson:"likesCount"`
-	CommentsCount int       `json:"commentsCount" bson:"commentsCount"`
-	Visibility    string    `json:"visibility" bson:"visibility"`
-	Tags          []string  `json:"tags,omitempty" bson:"tags,omitempty"`
-	Duration      int       `json:"duration,omitempty" bson:"duration,omitempty"`
-	FileSize      int64     `json:"fileSize,omitempty" bson:"fileSize,omitempty"`
-	MimeType      string    `json:"mimeType,omitempty" bson:"mimeType,omitempty"`
-	IsFeatured    bool      `json:"isFeatured,omitempty" bson:"isFeatured,omitempty"`
+	ID            string             `json:"id" bson:"id"`
+	EventID       string             `json:"eventid" bson:"eventid"`
+	Type          string             `json:"type" bson:"type"`
+	URL           string             `json:"url" bson:"url"`
+	ThumbnailURL  string             `json:"thumbnailUrl,omitempty" bson:"thumbnailUrl,omitempty"`
+	Caption       string             `json:"caption" bson:"caption"`
+	Description   string             `json:"description,omitempty" bson:"description,omitempty"`
+	CreatorID     string             `json:"creatorid" bson:"creatorid"`
+	LikesCount    int                `json:"likesCount" bson:"likesCount"`
+	CommentsCount int                `json:"commentsCount" bson:"commentsCount"`
+	Visibility    string             `json:"visibility" bson:"visibility"`
+	Tags          []string           `json:"tags,omitempty" bson:"tags,omitempty"`
+	Duration      int                `json:"duration,omitempty" bson:"duration,omitempty"`
+	FileSize      int64              `json:"fileSize,omitempty" bson:"fileSize,omitempty"`
+	MimeType      string             `json:"mimeType,omitempty" bson:"mimeType,omitempty"`
+	IsFeatured    bool               `json:"isFeatured,omitempty" bson:"isFeatured,omitempty"`
+	EntityID      primitive.ObjectID `json:"entity_id" bson:"entity_id"`
+	EntityType    string             `json:"entity_type" bson:"entity_type"` // "event" or "place"
+	MediaType     string             `json:"media_type" bson:"media_type"`   // "image" or "video"
+	CreatedAt     time.Time          `json:"created_at" bson:"created_at"`
+	UserID        primitive.ObjectID `bson:"user_id" json:"userId"`
+	UpdatedAt     time.Time          `bson:"updated_at" json:"updatedAt"`
 }
 
 // type Category struct {
@@ -318,11 +322,20 @@ type Tag struct {
 }
 
 type Ticket struct {
-	TicketID string  `json:"ticketid" bson:"ticketid"`
-	EventID  string  `json:"eventid" bson:"eventid"`
-	Name     string  `json:"name" bson:"name"`
-	Price    float64 `json:"price" bson:"price"`
-	Quantity int     `json:"quantity" bson:"quantity"`
+	TicketID    string             `json:"ticketid" bson:"ticketid"`
+	EventID     string             `json:"eventid" bson:"eventid"`
+	Name        string             `json:"name" bson:"name"`
+	Price       float64            `json:"price" bson:"price"`
+	Quantity    int                `json:"quantity" bson:"quantity"`
+	ID          primitive.ObjectID `json:"id" bson:"_id,omitempty"`
+	EntityID    primitive.ObjectID `json:"entity_id" bson:"entity_id"`
+	EntityType  string             `json:"entity_type" bson:"entity_type"` // "event" or "place"
+	Available   int                `json:"available" bson:"available"`
+	Total       int                `json:"total" bson:"total"`
+	CreatedAt   time.Time          `json:"created_at" bson:"created_at"`
+	Description string             `bson:"description,omitempty" json:"description"`
+	Sold        int                `bson:"sold" json:"sold"`
+	UpdatedAt   time.Time          `bson:"updated_at" json:"updatedAt"`
 }
 
 const (
@@ -336,3 +349,71 @@ const (
 	MediaTypeVideo    = "video"
 	MediaTypePhoto360 = "photo360"
 )
+
+type Entity struct {
+	ID          primitive.ObjectID `json:"id" bson:"_id,omitempty"`
+	Type        string             `json:"type" bson:"type"` // "event" or "place"
+	Title       string             `json:"title" bson:"title"`
+	Description string             `json:"description" bson:"description"`
+	Creator     primitive.ObjectID `json:"creator" bson:"creator"`
+	Location    GeoJSON            `json:"location,omitempty" bson:"location,omitempty"`
+	CreatedAt   time.Time          `json:"created_at" bson:"created_at"`
+	UpdatedAt   time.Time          `json:"updated_at" bson:"updated_at"`
+	DateTime    *time.Time         `json:"date_time,omitempty" bson:"date_time,omitempty"`
+}
+
+type EventDetails struct {
+	EntityID primitive.ObjectID `json:"entity_id" bson:"entity_id"`
+	DateTime time.Time          `json:"date_time" bson:"date_time"`
+}
+
+type PlaceDetails struct {
+	EntityID  primitive.ObjectID `json:"entity_id" bson:"entity_id"`
+	Amenities []string           `json:"amenities,omitempty" bson:"amenities,omitempty"`
+}
+
+type GeoJSON struct {
+	Type        string    `json:"type" bson:"type"` // Always "Point"
+	Coordinates []float64 `json:"coordinates" bson:"coordinates"`
+}
+
+type Follower struct {
+	FollowerID primitive.ObjectID `json:"follower_id" bson:"follower_id"`
+	FolloweeID primitive.ObjectID `json:"followee_id" bson:"followee_id"`
+	CreatedAt  time.Time          `json:"created_at" bson:"created_at"`
+}
+
+type Follow struct {
+	ID         primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	FollowerID primitive.ObjectID `bson:"follower_id" json:"follower_id"` // ID of the user following
+	FollowedID primitive.ObjectID `bson:"followed_id" json:"followed_id"` // ID of the user being followed
+	CreatedAt  time.Time          `bson:"created_at" json:"created_at"`
+}
+
+type Suggestion struct {
+	ID          primitive.ObjectID `json:"id" bson:"_id,omitempty"`
+	Type        string             `json:"type" bson:"type"` // e.g., "place" or "event"
+	Title       string             `json:"title" bson:"title"`
+	Description string             `json:"description,omitempty" bson:"description,omitempty"`
+	Name        string             `json:"name"`
+}
+
+type Seat struct {
+	ID         primitive.ObjectID `json:"id" bson:"_id,omitempty"`
+	EntityID   primitive.ObjectID `json:"entity_id" bson:"entity_id"`
+	EntityType string             `json:"entity_type" bson:"entity_type"` // e.g., "event" or "place"
+	SeatNumber string             `json:"seat_number" bson:"seat_number"`
+	UserID     primitive.ObjectID `json:"user_id" bson:"user_id,omitempty"`
+	Status     string             `json:"status" bson:"status"` // e.g., "booked", "available"
+}
+
+type UserProfile struct {
+	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	Username  string             `bson:"username" json:"username"`
+	Email     string             `bson:"email" json:"email"`
+	FullName  string             `bson:"full_name" json:"fullName"`
+	Bio       string             `bson:"bio,omitempty" json:"bio"`
+	AvatarURL string             `bson:"avatar_url,omitempty" json:"avatarUrl"`
+	CreatedAt time.Time          `bson:"created_at" json:"createdAt"`
+	UpdatedAt time.Time          `bson:"updated_at" json:"updatedAt"`
+}

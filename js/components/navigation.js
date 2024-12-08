@@ -1,5 +1,6 @@
 import { state } from "../state/state.js";
 import { navigate } from "../routes/render.js";
+import { logout } from "../services/auth.js";
 
 function createNav() {
     const isLoggedIn = Boolean(state.token);

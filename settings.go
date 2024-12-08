@@ -22,33 +22,6 @@ func GetCollection(name string) *mongo.Collection {
 	return client.Database("eventdb").Collection(name)
 }
 
-// func initializeDefaults() {
-// 	collection := GetCollection("settings")
-
-// 	// Check if settings already exist
-// 	count, err := collection.CountDocuments(context.Background(), bson.D{})
-// 	if err != nil {
-// 		log.Println("Error checking default settings:", err)
-// 		return
-// 	}
-
-// 	if count == 0 {
-// 		// Insert default settings
-// 		defaultSettings := GetDefaultSettings()
-// 		var docs []interface{}
-// 		for _, setting := range defaultSettings {
-// 			docs = append(docs, setting)
-// 		}
-
-// 		_, err := collection.InsertMany(context.Background(), docs)
-// 		if err != nil {
-// 			log.Println("Error inserting default settings:", err)
-// 		} else {
-// 			log.Println("Default settings initialized.")
-// 		}
-// 	}
-// }
-
 // Get all settings
 func GetSettings(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	collection := GetCollection("settings")

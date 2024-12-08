@@ -1,9 +1,10 @@
 import { state } from "../state/state.js";
 import { apiFetch } from "../api/api.js";
-import { displayTickets } from "../services/ticket.js";
-import { displayEventMedia, addMediaEventListeners } from "../services/media.js";
-import { displayMerchandise } from "../services/merch.js";
+import { displayTickets, addTicketForm } from "../services/ticket.js";
+import { displayEventMedia, addMediaEventListeners, showMediaUploadForm } from "../services/media.js";
+import { displayMerchandise, addMerchForm } from "../services/merch.js";
 import { showSnackbar } from "../utils/utils.js";
+import { navigate } from "../routes/render.js";
 
 
 let abortController = null;
