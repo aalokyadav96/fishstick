@@ -111,12 +111,12 @@ func createTweetPost(w http.ResponseWriter, r *http.Request, _ httprouter.Params
 
 	// Initialize a struct for the post
 	newPost := Post{
-		Username:   username,
-		UserID:     userid,
-		Text:       postText,
-		Timestamp:  time.Now().Format(time.RFC3339),
-		LikesCount: 0,
-		Type:       postType,
+		Username:  username,
+		UserID:    userid,
+		Text:      postText,
+		Timestamp: time.Now().Format(time.RFC3339),
+		Likes:     0,
+		Type:      postType,
 	}
 
 	var mediaPaths []string
