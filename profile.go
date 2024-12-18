@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/disintegration/imaging"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/julienschmidt/httprouter"
 	"go.mongodb.org/mongo-driver/bson"
@@ -150,7 +149,7 @@ func editProfile(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		}
 
 		// Update the profile picture field in the update map
-		update["profile_picture"] = "/" + claims.Username + ".jpg"
+		update["profile_picture"] = claims.Username + ".jpg"
 
 		// Ensure the thumb directory exists
 		if err := os.MkdirAll("./userpic/thumb", os.ModePerm); err != nil {
@@ -205,19 +204,6 @@ func editProfile(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	w.WriteHeader(http.StatusOK)         // Send 204 No Content
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(userProfile)
-}
-
-// createThumbnail creates a thumbnail of the image at inputPath and saves it at outputPath.
-func createThumbnail(inputPath, outputPath string) error {
-	width := 100
-	height := 100
-
-	img, err := imaging.Open(inputPath)
-	if err != nil {
-		return err
-	}
-	resizedImg := imaging.Resize(img, width, height, imaging.Lanczos)
-	return imaging.Save(resizedImg, outputPath)
 }
 
 func getProfile(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {

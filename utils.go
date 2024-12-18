@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
@@ -9,6 +10,8 @@ import (
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 var tmpl = template.Must(template.ParseGlob("index.html"))
@@ -126,3 +129,11 @@ func sendResponse(w http.ResponseWriter, status int, data interface{}, message s
 // 	}
 
 // }
+
+func createIndexes(collection *mongo.Collection) error {
+	indexModel := mongo.IndexModel{
+		Keys: bson.D{{Key: "timestamp", Value: -1}}, // Sort descending by timestamp
+	}
+	_, err := collection.Indexes().CreateOne(context.Background(), indexModel)
+	return err
+}
