@@ -3,20 +3,44 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 
-	"github.com/joho/godotenv"
 	"github.com/redis/go-redis/v9"
+    "github.com/joho/godotenv"
 )
 
-var redis_url = os.Getenv("REDIS_URL")
-var conn = redis.NewClient(&redis.Options{
-	Addr:     redis_url,
-	Password: os.Getenv("REDIS_PASSWORD"), // no password set
-	DB:       0,                           // use default DB
-})
+//~ var redis_url = os.Getenv("REDIS_URL")
+//~ var redis_pass = os.Getenv("REDIS_PASSWORD")
 
-func InitRedis() { godotenv.Load() }
+//~ var conn = redis.NewClient(&redis.Options{
+        //~ Addr:     redis_url,
+        //~ Password: redis_pass, // no password set
+        //~ DB:       0,  // use default DB
+    //~ })
+	
+    var rxdurl string = os.Getenv("REDIS_URL")
+    var rxdopts, _ = redis.ParseURL(rxdurl)
+    var conn = redis.NewClient(rxdopts)
+
+
+func init() {
+  err := godotenv.Load()
+  if err != nil {
+    log.Fatal("Error loading .env file")
+  }
+RdxPing()
+}
+
+func RdxPing() {
+ctx := context.Background()
+	k, err := conn.Ping(ctx).Result()
+	if err != nil {
+		fmt.Println("error while doing PING command in redis : %v", err)
+	}
+	fmt.Println(k)
+}
+
 
 func RdxSet(key, value string) error {
 
@@ -43,6 +67,7 @@ func RdxGet(key string) (string, error) {
 	return value, err
 }
 
+
 func RdxDel(key string) (string, error) {
 
 	ctx := context.Background()
@@ -52,7 +77,7 @@ func RdxDel(key string) (string, error) {
 		return "", fmt.Errorf("error while doing DEL command in redis : %v", err)
 	}
 
-	return "" + string(value), err
+	return ""+string(value), err
 }
 
 func RdxHset(hash, key, value string) error {
@@ -101,6 +126,7 @@ func RdxHgetall(hash string) map[string]string {
 	return value
 
 }
+
 
 func RdxAppend(key, value string) error {
 	ctx := context.Background()
