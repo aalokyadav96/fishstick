@@ -141,13 +141,16 @@ func main() {
 	router.DELETE("/api/place/:placeid/merch/:merchid", authenticate(deleteMerch))
 
 	// CORS setup
-
+	allowedOrigin := os.Getenv("ALLOWED_ORIGIN")
+	if allowedOrigin == "" {
+    		log.Fatal("ALLOWED_ORIGIN environment variable is not set")
+	}
 	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"*"},
+		AllowedOrigins:   []string{allowedOrigin},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Content-Type", "Authorization"},
 		AllowCredentials: true,
-		// Debug:            true,
+		Debug:            true,
 	})
 
 	// Serve static files (HTML, CSS, JS)
