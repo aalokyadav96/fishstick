@@ -131,6 +131,10 @@ func getPlaces(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	placesJSON, _ := json.Marshal(places)
 	RdxSet("places", string(placesJSON))
 
+	if places == nil {
+		places = []Place{}
+	}
+
 	// Encode and return places data
 	json.NewEncoder(w).Encode(places)
 }

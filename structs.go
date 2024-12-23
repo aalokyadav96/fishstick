@@ -24,6 +24,7 @@ type User struct {
 	IsActive       bool                 `json:"is_active" bson:"is_active"`
 	LastLogin      time.Time            `json:"last_login,omitempty" bson:"last_login,omitempty"`
 	ProfilePicture string               `json:"profile_picture" bson:"profile_picture"`
+	BannerPicture  string               `json:"banner_picture" bson:"banner_picture"`
 	ProfileViews   int                  `json:"profile_views,omitempty" bson:"profile_views,omitempty"`
 	Address        string               `json:"address,omitempty" bson:"address,omitempty"`
 	DateOfBirth    time.Time            `json:"date_of_birth,omitempty" bson:"date_of_birth,omitempty"`

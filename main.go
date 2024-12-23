@@ -81,6 +81,8 @@ func main() {
 	router.POST("/api/logout", authenticate(logoutUser))
 	router.GET("/api/profile", authenticate(getProfile))
 	router.PUT("/api/profile", authenticate(editProfile))
+	router.PUT("/api/profile/dp", authenticate(editProfilePic))
+	router.PUT("/api/profile/banner", authenticate(editProfileBanner))
 	router.DELETE("/api/profile", authenticate(deleteProfile))
 	router.POST("/api/follows/:id", authenticate(toggleFollow))
 	router.GET("/api/follows/:id", authenticate(doesFollow))
