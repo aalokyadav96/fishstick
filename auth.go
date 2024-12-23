@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -40,65 +41,47 @@ func login(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		http.Error(w, "Invalid input", http.StatusBadRequest)
 		return
 	}
-
-	// // Check Redis cache for token
-	// cachedToken, err := RdxHget("tokki", user.UserID)
-	// if err != nil {
-	// 	// Handle Redis error if necessary, log it or silently move on
-	// 	log.Printf("Error checking token in Redis: %v", err)
-	// }
-	// if cachedToken != "" {
-	// 	// Token found in cache, return it
-	// 	sendResponse(w, http.StatusOK, map[string]string{"token": cachedToken, "userid": user.UserID}, "Login successful", nil)
-	// 	return
-	// }
-
+	fmt.Println("Login : JSON decode")
 	// Look for the user in MongoDB by username
 	var storedUser User
 	err := userCollection.FindOne(context.TODO(), bson.M{"username": user.Username}).Decode(&storedUser)
 	if err != nil {
-		// Return generic error message for security reasons
 		http.Error(w, "Invalid username or password", http.StatusUnauthorized)
 		return
 	}
+	fmt.Println("Login : FindOneDecodeUser")
 
 	// Verify password
 	if err := bcrypt.CompareHashAndPassword([]byte(storedUser.Password), []byte(user.Password)); err != nil {
 		http.Error(w, "Invalid username or password", http.StatusUnauthorized)
 		return
 	}
-	// In login function, after verifying password
-	// Remove any existing token for this user in Redis
-	_, err = RdxHdel("tokki", storedUser.UserID)
-	if err != nil {
-		log.Printf("Error removing existing token from Redis: %v", err)
-	}
+	fmt.Println("Login : Bcrypt")
 
 	// Create JWT claims
 	claims := &Claims{
 		Username: storedUser.Username,
 		UserID:   storedUser.UserID,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(72 * time.Hour)), // Adjust expiration as needed
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(accessTokenTTL)),
 		},
 	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString(jwtSecret)
+	tokenString, err := createToken(claims)
 	if err != nil {
 		http.Error(w, "Failed to generate token", http.StatusInternalServerError)
 		return
 	}
+	fmt.Println("Login : tokenString")
 
 	refreshToken, err := generateRefreshToken()
 	if err != nil {
 		http.Error(w, "Error generating refresh token", http.StatusInternalServerError)
 		return
 	}
+	fmt.Println("Login : refreshToken")
 
-	collection := client.Database("eventdb").Collection("users")
-	// Hash the refresh token
 	hashedRefreshToken := hashToken(refreshToken)
-	_, err = collection.UpdateOne(
+	_, err = userCollection.UpdateOne(
 		context.TODO(),
 		bson.M{"userid": storedUser.UserID},
 		bson.M{"$set": bson.M{"refresh_token": hashedRefreshToken, "refresh_expiry": time.Now().Add(refreshTokenTTL)}},
@@ -107,15 +90,8 @@ func login(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		http.Error(w, "Error storing refresh token", http.StatusInternalServerError)
 		return
 	}
+	fmt.Println("Login : beforeSendResponse")
 
-	// Cache the token in Redis (only cache if login is successful)
-	err = RdxHset("tokki", claims.UserID, tokenString)
-	if err != nil {
-		// Log the Redis caching failure, but allow the login to proceed
-		log.Printf("Error caching token in Redis: %v", err)
-	}
-
-	// Send response with the token
 	sendResponse(w, http.StatusOK, map[string]string{"token": tokenString, "refreshToken": refreshToken, "userid": storedUser.UserID}, "Login successful", nil)
 }
 
@@ -127,112 +103,68 @@ func register(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	}
 	log.Printf("Registering user: %s", user.Username)
 
-	// // Check if the username exists in Redis first
-	// existingUsername, err := RdxHget("users", user.UserID)
-	// log.Println(existingUsername)
-	// if err != nil && err.Error() != "redis: nil" {
-	// 	// Handle unexpected Redis errors
-	// 	log.Printf("Error checking Redis for user %s: %v", user.Username, err)
-	// 	http.Error(w, "Internal server error", http.StatusInternalServerError)
-	// 	return
-	// }
-
-	// if existingUsername != "" {
-	// 	// If user exists in Redis, return conflict error
-	// 	log.Printf("User already exists (in Redis): %s", user.Username)
-	// 	http.Error(w, "User already exists", http.StatusConflict)
-	// 	return
-	// }
-
-	// User not found in Redis, check the database
+	// Check if user exists in database
 	var existingUser User
 	err := userCollection.FindOne(context.TODO(), bson.M{"username": user.Username}).Decode(&existingUser)
 	if err == nil {
-		// User already exists in database
-		log.Printf("User already exists (in DB): %s", user.Username)
 		http.Error(w, "User already exists", http.StatusConflict)
 		return
 	} else if err != mongo.ErrNoDocuments {
-		// Handle unexpected error from MongoDB
-		log.Printf("Error checking for existing user in DB: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	_, err = RdxHdel("tokki", user.UserID)
-	if err != nil {
-		log.Printf("Error removing existing token from Redis: %v", err)
-	}
-
-	// Proceed with password hashing if user does not already exist
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 	if err != nil {
-		log.Printf("Failed to hash password for user %s: %v", user.Username, err)
 		http.Error(w, "Failed to hash password", http.StatusInternalServerError)
 		return
 	}
+
 	user.Password = string(hashedPassword)
 	user.UserID = "u" + GenerateName(10)
 
-	// Insert new user into the database
 	_, err = userCollection.InsertOne(context.TODO(), user)
 	if err != nil {
-		log.Printf("Failed to insert user into DB: %v", err)
 		http.Error(w, "Failed to register user", http.StatusInternalServerError)
 		return
 	}
 
-	// Cache the user information in Redis (optional for fast future access)
-	err = RdxHset("users", user.UserID, user.Username)
-	if err != nil {
-		log.Printf("Error caching user in Redis: %v", err)
-	}
-
-	// go CreatePreferences(w, r, ps)
-
-	// Respond with success
-	w.WriteHeader(http.StatusCreated)
-	response := map[string]interface{}{
-		"status":  http.StatusCreated,
-		"message": "User registered successfully",
-		"data":    user.Username,
-	}
-	json.NewEncoder(w).Encode(response)
+	sendResponse(w, http.StatusCreated, map[string]string{"username": user.Username}, "User registered successfully", nil)
 }
 
 type contextKey string
 
 const userIDKey contextKey = "userId"
 
-// Authenticate middleware
-func authenticate(next httprouter.Handle) httprouter.Handle {
-	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-		tokenString := r.Header.Get("Authorization")
-		if tokenString == "" {
-			http.Error(w, "Missing token", http.StatusUnauthorized)
-			return
-		}
+// // Authenticate middleware
+// func authenticate(next httprouter.Handle) httprouter.Handle {
+// 	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+// 		tokenString := r.Header.Get("Authorization")
+// 		if tokenString == "" {
+// 			http.Error(w, "Missing token", http.StatusUnauthorized)
+// 			return
+// 		}
 
-		if len(tokenString) < 7 || tokenString[:7] != "Bearer " {
-			http.Error(w, "Invalid token format", http.StatusUnauthorized)
-			return
-		}
+// 		if len(tokenString) < 7 || tokenString[:7] != "Bearer " {
+// 			http.Error(w, "Invalid token format", http.StatusUnauthorized)
+// 			return
+// 		}
 
-		claims := &Claims{}
-		token, err := jwt.ParseWithClaims(tokenString[7:], claims, func(token *jwt.Token) (interface{}, error) {
-			return jwtSecret, nil
-		})
+// 		claims := &Claims{}
+// 		token, err := jwt.ParseWithClaims(tokenString[7:], claims, func(token *jwt.Token) (interface{}, error) {
+// 			return jwtSecret, nil
+// 		})
 
-		if err != nil || !token.Valid {
-			http.Error(w, "Invalid token", http.StatusUnauthorized)
-			return
-		}
+// 		if err != nil || !token.Valid {
+// 			http.Error(w, "Invalid token", http.StatusUnauthorized)
+// 			return
+// 		}
 
-		// Store UserID in context
-		ctx := context.WithValue(r.Context(), userIDKey, claims.UserID)
-		next(w, r.WithContext(ctx), ps) // Call the next handler with new context
-	}
-}
+// 		// Store UserID in context
+// 		ctx := context.WithValue(r.Context(), userIDKey, claims.UserID)
+// 		next(w, r.WithContext(ctx), ps) // Call the next handler with new context
+// 	}
+// }
 
 func logoutUser(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	tokenString := r.Header.Get("Authorization")
@@ -329,4 +261,45 @@ func hashToken(token string) string {
 	hash := sha256.New()
 	hash.Write([]byte(token))
 	return hex.EncodeToString(hash.Sum(nil))
+}
+
+func authenticate(next httprouter.Handle) httprouter.Handle {
+	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+		tokenString, err := extractToken(r)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusUnauthorized)
+			return
+		}
+
+		claims := &Claims{}
+		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+			return jwtSecret, nil
+		})
+
+		if err != nil || !token.Valid {
+			http.Error(w, "Invalid token", http.StatusUnauthorized)
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), userIDKey, claims.UserID)
+		next(w, r.WithContext(ctx), ps)
+	}
+}
+
+func extractToken(r *http.Request) (string, error) {
+	tokenString := r.Header.Get("Authorization")
+	if tokenString == "" {
+		return "", http.ErrNoCookie
+	}
+
+	if len(tokenString) < 7 || tokenString[:7] != "Bearer " {
+		return "", http.ErrHandlerTimeout
+	}
+
+	return tokenString[7:], nil
+}
+
+func createToken(claims *Claims) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(jwtSecret)
 }
