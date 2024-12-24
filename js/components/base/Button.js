@@ -1,5 +1,5 @@
 // Button with custom event handler
-function Button(title, id, events = {}) {
+const Button = (title, id, events = {}) =>  {
     const button = document.createElement('button');
     button.textContent = title;
     button.id = id;
@@ -14,4 +14,5 @@ function Button(title, id, events = {}) {
   }
 
   
+export default Button;
 export {Button};

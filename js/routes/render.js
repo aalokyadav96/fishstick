@@ -1,109 +1,109 @@
-import { createNav, attachNavEventListeners } from "../components/navigation.js";
-import { displayAuthSection } from "../pages/auth.js";
-import { displayProfile, displayUserProfile } from "../pages/profile.js";
-import { displayPlace, createPlaceForm, displayPlaces } from "../pages/places.js";
-import { createEventForm, displayEvent, displayEvents } from "../pages/events.js";
-import { Home } from "../pages/home.js";
-import { displayFeed } from "../pages/feed.js";
-import { displaySearch } from "../pages/search.js";
-import { displaySettings } from "../pages/settings.js";
-
-
-async function loadContent(url) {
-    const app = document.getElementById("app");
-    const content = document.createElement("div");
-    content.id = "content";
-    app.innerHTML = createNav();
-    app.appendChild(content);
-    attachNavEventListeners();
-
-    const path = url || window.location.pathname;
-
+async function renderPageContent(path, contentContainer) {
+    // Route Handlers (Static Routes)
     const routeHandlers = {
-        "/": () => { 
-            content.innerHTML = `<h1>Welcome to the App</h1>`;
-            Home(); 
+        "/": async () => {
+            const { Home } = await import("../pages/home.js");
+            contentContainer.innerHTML = ""; // Clear previous page content
+            Home(contentContainer);
         },
-        "/profile": () => { 
-            content.innerHTML = `<div id="profile-section"></div>`;
-            displayProfile(); 
+        "/login": async () => {
+            const { Auth } = await import("../pages/auth/auth.js");
+            contentContainer.innerHTML = "";
+            Auth(contentContainer);
         },
-        "/feed": () => { 
-            content.innerHTML = `<div id="feed-section"></div>`;
-            displayFeed(); 
+        "/create-event": async () => {
+            const { Create } = await import("../pages/events/createEvent.js");
+            contentContainer.innerHTML = "";
+            Create(contentContainer);
         },
-        "/search": () => { 
-            content.innerHTML = `<h1>Search</h1><div id="search-section"></div>`;
-            displaySearch(); 
+        "/create-place": async () => {
+            const { CreatePlace } = await import("../pages/places/createPlace.js");
+            contentContainer.innerHTML = "";
+            CreatePlace(contentContainer);
         },
-        "/create": () => { 
-            content.innerHTML = `<h1>Create Event</h1><div id="create-section"></div>`;
-            createEventForm(); 
+        "/profile": async () => {
+            const { UserProfile } = await import("../pages/profile/userProfile.js");
+            contentContainer.innerHTML = "";
+            UserProfile(contentContainer);
         },
-        "/place": () => { 
-            content.innerHTML = `<h1>Create Place</h1><div id="create-place-section"></div>`;
-            createPlaceForm(); 
+        "/events": async () => {
+            const { Events } = await import("../pages/events/events.js");
+            contentContainer.innerHTML = "";
+            Events(contentContainer);
         },
-        "/settings": () => { 
-            content.innerHTML = `<h1>Settings</h1><div id="settings"></div>`;
-            displaySettings(); 
+        "/places": async () => {
+            const { Places } = await import("../pages/places/places.js");
+            contentContainer.innerHTML = "";
+            Places(contentContainer);
         },
-        "/places": () => { 
-            content.innerHTML = `<h1>Places</h1><div id="places"></div>`;
-            displayPlaces(); 
+        "/search": async () => {
+            const { Search } = await import("../pages/search.js");
+            contentContainer.innerHTML = "";
+            Search(contentContainer);
         },
-        "/events": () => { 
-            content.innerHTML = `<h1>Events</h1><div id="events"></div><div id="pagination"></div>`;
-            displayEvents(1); 
+        "/settings": async () => {
+            const { Settings } = await import("../pages/profile/settings.js");
+            contentContainer.innerHTML = "";
+            Settings(contentContainer);
         },
-        "/login": () => { 
-            content.innerHTML = `<div id="auth-section"></div>`;
-            displayAuthSection(); 
+        "/feed": async () => {
+            const { Feed } = await import("../pages/feed.js");
+            contentContainer.innerHTML = "";
+            Feed(contentContainer);
         },
     };
 
-    // Dynamic routes
-    if (path.startsWith("/user/")) {
-        const username = path.split("/")[2];
-        await displayUserProfile(username);
-    } else if (path.startsWith("/event/")) {
-        const eventId = path.split("/")[2];
-        await displayEvent(eventId);
-    } else if (path.startsWith("/place/")) {
-        const placeId = path.split("/")[2];
-        await displayPlace(placeId);
+    // Dynamic Routes (Pattern Matching)
+    const dynamicRoutes = [
+        {
+            pattern: /^\/user\/([\w-]+)$/,
+            handler: async (matches) => {
+                const { displayUserProfile } = await import("../pages/profile/userProfile.js");
+                await displayUserProfile(contentContainer, matches[1]);
+            },
+        },
+        {
+            pattern: /^\/event\/([\w-]+)$/,
+            handler: async (matches) => {
+                const { Event } = await import("../pages/events/eventPage.js");
+                try {
+                    contentContainer.innerHTML = "";
+                    Event(matches[1], contentContainer);
+                } catch {
+                    content.innerHTML = `<h1>Event Not Found</h1>`;
+                }
+            },
+        },
+        {
+            pattern: /^\/place\/([\w-]+)$/,
+            handler: async (matches) => {
+                const { Place } = await import("../pages/places/placePage.js");
+                try {
+                    // await Place(matches[1]);
+                    Place(matches[1],content);
+                } catch {
+                    content.innerHTML = `<h1>Place Not Found</h1>`;
+                }
+            },
+        },
+    ];
+
+    // Match static routes
+    const handler = routeHandlers[path];
+    if (handler) {
+        await handler();
     } else {
-        const handler = routeHandlers[path];
-        if (handler) {
-            handler();
-        } else {
-            content.innerHTML = `<h1>404 Not Found</h1>`;
+        // Match dynamic routes
+        for (const route of dynamicRoutes) {
+            const matches = path.match(route.pattern);
+            if (matches) {
+                await route.handler(matches);
+                return;
+            }
         }
+        // If no route matches, show 404
+        content.innerHTML = `<h1>404 Not Found</h1>`;
     }
 }
 
-
-function navigate(url) {
-    history.pushState(null, "", url);
-    loadContent(url);
-}
-
-async function renderPage() {
-    await loadContent(window.location.pathname);
-}
-
-// Attach event listener for navigation to dynamically handle back/forward actions
-window.addEventListener("popstate", renderPage);
-
-// Example of attaching global event listeners dynamically
-document.addEventListener("DOMContentLoaded", () => {
-    document.body.addEventListener("click", (event) => {
-        if (event.target.tagName === "A" && event.target.getAttribute("href")) {
-            event.preventDefault();
-            const url = event.target.getAttribute("href");
-            navigate(url);
-        }
-    });
-});
-
-export { navigate, loadContent, renderPage };
+export { renderPageContent };
