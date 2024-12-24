@@ -1,0 +1,94 @@
+/* General video player styling */
+#video-player {
+    position: relative;
+    width: 640px;
+    max-width: 100%;
+    margin: 20px auto;
+    background: #000;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+  }
+  
+  /* Video element styling */
+  #main-video {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+  
+  #video-player:hover .controls {
+    display: flex;
+  }
+
+  /* Controls container */
+  .controls {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    padding: 10px;
+    box-sizing: border-box;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  /* Progress bar container */
+  .progress-bar {
+    width: 90%;
+    height: 5px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 5px;
+    margin-bottom: 10px;
+    position: relative;
+    cursor: pointer;
+  }
+  
+  .progress-bar .progress {
+    height: 100%;
+    background: #4caf50;
+    border-radius: 5px;
+    transition: width 0.2s ease;
+  }
+  
+  /* Buttons container */
+  .buttons {
+    display: flex;
+    gap: 10px;
+  }
+  
+  /* Individual button styles */
+  /* .button {
+    background: rgba(255, 255, 255, 0.8);
+    border: none;
+    border-radius: 5px;
+    color: #000;
+    padding: 5px 10px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.2s ease;
+  } */
+  .button {
+    background: rgb(0 0 0 / 80%);
+    border: none;
+    border-radius: 5px;
+    color: #fff;
+    padding: 5px 10px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+  .button:hover {
+    background: #4caf50;
+    color: #fff;
+  }
+  
+  #mute {
+    font-size: 18px;
+  }
+  

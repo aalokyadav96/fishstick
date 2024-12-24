@@ -1,0 +1,111 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    vertical-align: baseline;
+}
+
+body {
+    font-family: "Breezesans", system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    line-height: 1.6;
+    background-color: #f9f9f9;
+    color: #333;
+    min-height: 100vh;
+    /* background: #ffffff url('') no-repeat center center fixed;
+ -webkit-background-size: cover;
+ -moz-background-size: cover;
+ background-size: cover;*/
+}
+
+/* body::-webkit-scrollbar {
+    width: 14px;
+}
+
+body::-webkit-scrollbar-thumb {
+    background-color: #555;
+} */
+
+content {
+    padding: 1rem;
+}
+
+ul {
+    list-style-type: none;
+}
+
+
+.dropdown {
+    position: relative;
+    display: inline-block
+}
+
+.dropdown-toggle {
+    background: #02b409;
+    border: 0;
+    border-radius: 8px;
+    color: white;
+    font-size: 18px;
+    cursor: pointer
+}
+
+/* .profile-dropdown-menu,
+.dropdown-menu {
+    right: 0;
+    background-color: #fff;
+    display: none;
+    position: absolute;
+    min-width: 140px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+    z-index: 1;
+    margin-top: 10px;
+    border-radius: 5px;
+} */
+
+.dropdown-item {
+    padding: 10px 20px;
+    background-color: #000000;
+    color: rgb(255, 255, 255);
+    text-decoration: none;
+    display: block;
+    font-size: 16px;
+    text-align: left;
+    width: 100%;
+}
+
+.dropdown-item:hover {
+    background-color: #ffffff;
+    color: rgb(0, 0, 0);
+}
+
+.profile-dropdown-menu.show,
+.dropdown-menu.show {
+    display: block;
+}
+
+.mobile-menu-icon {
+    display: none;
+    cursor: pointer;
+}
+
+.mobile-menu-icon.bar {
+    width: 25px;
+    height: 4px;
+    background-color: white;
+    margin: 5px auto;
+    transition: .3s;
+}
+
+
+nav ul li button {
+    background-color: #ff7043;
+    border: 0;
+    color: white;
+    padding: 8px 16px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color.3s ease;
+}
+
+nav ul li button:hover {
+    background-color: #e64a19;
+}

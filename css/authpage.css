@@ -1,0 +1,15 @@
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    max-width: 350px;
+    gap: 0.4rem;
+    margin-bottom: 3rem;
+}
+
+/* input, textarea, select, button {
+    font-size: 1em;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    width: 100%;
+} */
