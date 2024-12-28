@@ -7,7 +7,9 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/julienschmidt/httprouter"
@@ -25,6 +27,11 @@ func createEvent(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 	var event Event
 	// Get the event data from the form (assuming it's passed as JSON string)
+	if r.FormValue("event") == "" {
+		http.Error(w, "Missing event data", http.StatusBadRequest)
+		return
+	}
+
 	err := json.Unmarshal([]byte(r.FormValue("event")), &event)
 	if err != nil {
 		http.Error(w, "Invalid input", http.StatusBadRequest)
@@ -43,52 +50,138 @@ func createEvent(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	// Generate a unique EventID
 	event.EventID = generateID(14)
 
-	// Handle the banner image upload (if present)
-	bannerFile, _, err := r.FormFile("banner")
-	if err != nil && err != http.ErrMissingFile {
-		http.Error(w, "error retrieving banner file", http.StatusBadRequest)
+	// Check for EventID collisions
+	collection := client.Database("eventdb").Collection("events")
+	exists := collection.FindOne(context.TODO(), bson.M{"eventid": event.EventID}).Err()
+	if exists == nil {
+		http.Error(w, "Event ID collision, try again", http.StatusInternalServerError)
 		return
 	}
 
-	// If a banner file is provided, process it
+	// Handle the banner image upload (if present)
+	bannerFile, _, err := r.FormFile("banner")
+	if err != nil && err != http.ErrMissingFile {
+		http.Error(w, "Error retrieving banner file", http.StatusBadRequest)
+		return
+	}
+
 	if bannerFile != nil {
+		defer bannerFile.Close()
+
+		// Validate file type
+		buff := make([]byte, 512)
+		if _, err := bannerFile.Read(buff); err != nil {
+			http.Error(w, "Error reading file", http.StatusInternalServerError)
+			return
+		}
+		contentType := http.DetectContentType(buff)
+		if !strings.HasPrefix(contentType, "image/") {
+			http.Error(w, "Invalid file type", http.StatusBadRequest)
+			return
+		}
+		bannerFile.Seek(0, io.SeekStart) // Reset the file pointer
+
 		// Ensure the directory exists
-		if err := os.MkdirAll("./eventpic", os.ModePerm); err != nil {
-			http.Error(w, "error creating directory for banner", http.StatusInternalServerError)
+		if err := os.MkdirAll("./eventpic", 0755); err != nil {
+			http.Error(w, "Error creating directory for banner", http.StatusInternalServerError)
 			return
 		}
 
-		// Save the banner image
-		out, err := os.Create("./eventpic/" + event.EventID + ".jpg")
+		// Sanitize and save the banner image
+		sanitizedFileName := filepath.Join("./eventpic", filepath.Base(event.EventID+".jpg"))
+		out, err := os.Create(sanitizedFileName)
 		if err != nil {
-			http.Error(w, "error saving banner", http.StatusInternalServerError)
+			http.Error(w, "Error saving banner", http.StatusInternalServerError)
 			return
 		}
 		defer out.Close()
 
-		// Copy the content from the uploaded file to the destination file
 		if _, err := io.Copy(out, bannerFile); err != nil {
-			http.Error(w, "error saving banner", http.StatusInternalServerError)
+			http.Error(w, "Error saving banner", http.StatusInternalServerError)
 			return
 		}
 
 		// Set the event's banner image field with the saved image path
-		event.BannerImage = event.EventID + ".jpg"
+		event.BannerImage = filepath.Base(sanitizedFileName)
 	}
 
 	// Insert the event into MongoDB
-	collection := client.Database("eventdb").Collection("events")
-	_, err = collection.InsertOne(context.TODO(), event)
-	if err != nil {
-		http.Error(w, "error saving event", http.StatusInternalServerError)
+	result, err := collection.InsertOne(context.TODO(), event)
+	if err != nil || result.InsertedID == nil {
+		log.Printf("Error inserting event into MongoDB: %v", err)
+		http.Error(w, "Error saving event", http.StatusInternalServerError)
 		return
 	}
 
 	// Respond with the created event
 	w.WriteHeader(http.StatusCreated) // 201 Created
 	if err := json.NewEncoder(w).Encode(event); err != nil {
+		log.Printf("Error encoding event response: %v", err)
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 	}
+}
+
+func editEvent(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	eventID := ps.ByName("eventid")
+	if eventID == "" {
+		http.Error(w, "Missing event ID", http.StatusBadRequest)
+		return
+	}
+
+	// Extract and validate update fields
+	updateFields, err := updateEventFields(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if err := validateUpdateFields(updateFields); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Handle banner image upload
+	bannerImage, err := handleFileUpload(r, eventID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if bannerImage != "" {
+		updateFields["banner_image"] = bannerImage
+	}
+
+	// Add updated timestamp
+	updateFields["updated_at"] = time.Now()
+
+	// Update the event in MongoDB
+	collection := client.Database("eventdb").Collection("events")
+	result, err := collection.UpdateOne(
+		context.TODO(),
+		bson.M{"eventid": eventID},
+		bson.M{"$set": updateFields},
+	)
+	if err != nil {
+		log.Printf("Error updating event %s: %v", eventID, err)
+		http.Error(w, "Error updating event", http.StatusInternalServerError)
+		return
+	}
+
+	if result.MatchedCount == 0 {
+		http.Error(w, "Event not found", http.StatusNotFound)
+		return
+	}
+
+	// Retrieve the updated event
+	var updatedEvent Event
+	if err := collection.FindOne(context.TODO(), bson.M{"eventid": eventID}).Decode(&updatedEvent); err != nil {
+		log.Printf("Error retrieving updated event %s: %v", eventID, err)
+		http.Error(w, "Error retrieving updated event", http.StatusInternalServerError)
+		return
+	}
+
+	// Respond with the updated event
+	sendJSONResponse(w, http.StatusOK, updatedEvent)
 }
 
 func getEvents(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
@@ -166,12 +259,34 @@ func getEvent(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 			{Key: "foreignField", Value: "eventid"},
 			{Key: "as", Value: "tickets"},
 		}}},
+
 		bson.D{{Key: "$lookup", Value: bson.D{
 			{Key: "from", Value: "media"},
-			{Key: "localField", Value: "eventid"},
-			{Key: "foreignField", Value: "eventid"},
+			{Key: "let", Value: bson.D{
+				{Key: "event_id", Value: "$eventid"},
+			}},
+			{Key: "pipeline", Value: mongo.Pipeline{
+				bson.D{{Key: "$match", Value: bson.D{
+					{Key: "$expr", Value: bson.D{
+						{Key: "$and", Value: bson.A{
+							bson.D{{Key: "$eq", Value: bson.A{"$entityid", "$$event_id"}}},
+							bson.D{{Key: "$eq", Value: bson.A{"$entitytype", "event"}}},
+						}},
+					}},
+				}}},
+				bson.D{{Key: "$limit", Value: 10}},
+				bson.D{{Key: "$skip", Value: 0}},
+			}},
 			{Key: "as", Value: "media"},
 		}}},
+
+		// bson.D{{Key: "$lookup", Value: bson.D{
+		// 	{Key: "from", Value: "media"},
+		// 	{Key: "localField", Value: "eventid"},
+		// 	{Key: "foreignField", Value: "eventid"},
+		// 	{Key: "as", Value: "media"},
+		// }}},
+
 		bson.D{{Key: "$lookup", Value: bson.D{
 			{Key: "from", Value: "merch"},
 			{Key: "localField", Value: "eventid"},
@@ -205,54 +320,6 @@ func getEvent(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	if err := json.NewEncoder(w).Encode(event); err != nil {
 		http.Error(w, "Failed to encode event data", http.StatusInternalServerError)
 	}
-}
-
-// Handle editing event
-func editEvent(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	eventID := ps.ByName("eventid")
-
-	// Extract and update event fields
-	updateFields, err := updateEventFields(r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// Validate required fields
-	if err := validateUpdateFields(updateFields); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// Handle file upload
-	bannerImage, err := handleFileUpload(r, eventID)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// Update banner image if available
-	if bannerImage != "" {
-		updateFields["banner_image"] = bannerImage
-	}
-
-	// Update the event in MongoDB (only the fields that have changed)
-	collection := client.Database("eventdb").Collection("events")
-	updateFields["updated_at"] = time.Now() // Update the timestamp for the update
-
-	_, err = collection.UpdateOne(
-		context.TODO(),
-		bson.M{"eventid": eventID},
-		bson.M{"$set": updateFields},
-	)
-	if err != nil {
-		http.Error(w, "error updating event", http.StatusInternalServerError)
-		return
-	}
-
-	updateFields["eventid"] = eventID
-	// Respond with the updated event
-	sendJSONResponse(w, http.StatusOK, updateFields)
 }
 
 // Handle deleting event

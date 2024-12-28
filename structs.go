@@ -33,7 +33,7 @@ type User struct {
 	Follows        []string             `json:"follows,omitempty" bson:"follows,omitempty"`
 	Followers      []string             `json:"followers,omitempty" bson:"followers,omitempty"`
 	PasswordHash   string               `json:"password_hash" bson:"password_hash"`
-	ProfilePic     string               `json:"profile_pic,omitempty" bson:"profile_pic,omitempty"`
+	Banner         string               `json:"banner,omitempty" bson:"banner,omitempty"`
 	Following      []primitive.ObjectID `json:"following" bson:"following"`
 }
 
@@ -160,40 +160,86 @@ type EventPlace struct {
 	OperatingHours []string    `json:"operatinghours,omitempty" bson:"operatinghours,omitempty"`
 }
 
+// type Place struct {
+// 	PlaceID     string `json:"placeid" bson:"placeid"`
+// 	Name        string `json:"name,omitempty" bson:"name,omitempty"`
+// 	Description string `json:"description,omitempty" bson:"description,omitempty"`
+// 	Banner      string `json:"banner,omitempty" bson:"banner,omitempty"`
+// 	Address     string `json:"address,omitempty" bson:"address,omitempty"`
+// 	City        string `json:"city,omitempty" bson:"city,omitempty"`
+// 	// Location    string      `json:"location,omitempty" bson:"location,omitempty"`
+// 	Country        string            `json:"country,omitempty" bson:"country,omitempty"`
+// 	ZipCode        string            `json:"zipCode,omitempty" bson:"zipCode,omitempty"`
+// 	Coordinates    Coordinates       `json:"coordinates,omitempty" bson:"coordinates,omitempty"`
+// 	Capacity       int               `json:"capacity" bson:"capacity"`
+// 	Phone          string            `json:"phone,omitempty" bson:"phone,omitempty"`
+// 	Website        string            `json:"website,omitempty" bson:"website,omitempty"`
+// 	Category       string            `json:"category,omitempty" bson:"category,omitempty"`
+// 	IsOpen         bool              `json:"isopen,omitempty" bson:"isopen,omitempty"`
+// 	Distance       float64           `json:"distance,omitempty" bson:"distance,omitempty"`
+// 	Status         PlaceStatus       `json:"status,omitempty" bson:"status,omitempty"`
+// 	Views          int               `json:"views,omitempty" bson:"views,omitempty"`
+// 	ReviewCount    int               `json:"reviewCount,omitempty" bson:"reviewCount,omitempty"`
+// 	SocialLinks    map[string]string `json:"socialLinks,omitempty" bson:"socialLinks,omitempty"`
+// 	CreatedBy      string            `json:"createdBy,omitempty" bson:"createdBy,omitempty"`
+// 	UpdatedBy      string            `json:"updatedBy,omitempty" bson:"updatedBy,omitempty"`
+// 	CreatedAt      time.Time         `json:"created,omitempty" bson:"created,omitempty"`
+// 	UpdatedAt      time.Time         `json:"updated,omitempty" bson:"updated,omitempty"`
+// 	DeletedAt      *time.Time        `json:"deletedAt,omitempty" bson:"deletedAt,omitempty"`
+// 	Reviews        []Review          `json:"reviews,omitempty" bson:"reviews,omitempty"`
+// 	Merch          []Merch           `json:"merch,omitempty" bson:"merch,omitempty"`
+// 	Amenities      []string          `json:"amenities,omitempty" bson:"amenities,omitempty"`
+// 	Events         []Event           `json:"events,omitempty" bson:"events,omitempty"`
+// 	Tags           []string          `json:"tags,omitempty" bson:"tags,omitempty"`
+// 	Media          []Media           `json:"media,omitempty" bson:"media,omitempty"`
+// 	OperatingHours []string          `json:"operatinghours,omitempty" bson:"operatinghours,omitempty"`
+// 	Keywords       []string          `json:"keywords,omitempty" bson:"keywords,omitempty"`
+// }
+
 type Place struct {
-	PlaceID     string `json:"placeid" bson:"placeid"`
-	Name        string `json:"name,omitempty" bson:"name,omitempty"`
-	Description string `json:"description,omitempty" bson:"description,omitempty"`
-	Banner      string `json:"banner,omitempty" bson:"banner,omitempty"`
-	Address     string `json:"address,omitempty" bson:"address,omitempty"`
-	City        string `json:"city,omitempty" bson:"city,omitempty"`
-	// Location    string      `json:"location,omitempty" bson:"location,omitempty"`
-	Country        string            `json:"country,omitempty" bson:"country,omitempty"`
-	ZipCode        string            `json:"zipCode,omitempty" bson:"zipCode,omitempty"`
-	Coordinates    Coordinates       `json:"coordinates,omitempty" bson:"coordinates,omitempty"`
-	Capacity       int               `json:"capacity" bson:"capacity"`
-	Phone          string            `json:"phone,omitempty" bson:"phone,omitempty"`
-	Website        string            `json:"website,omitempty" bson:"website,omitempty"`
-	Category       string            `json:"category,omitempty" bson:"category,omitempty"`
-	IsOpen         bool              `json:"isopen,omitempty" bson:"isopen,omitempty"`
-	Distance       float64           `json:"distance,omitempty" bson:"distance,omitempty"`
-	Status         PlaceStatus       `json:"status,omitempty" bson:"status,omitempty"`
-	Views          int               `json:"views,omitempty" bson:"views,omitempty"`
-	ReviewCount    int               `json:"reviewCount,omitempty" bson:"reviewCount,omitempty"`
-	SocialLinks    map[string]string `json:"socialLinks,omitempty" bson:"socialLinks,omitempty"`
-	CreatedBy      string            `json:"createdBy,omitempty" bson:"createdBy,omitempty"`
-	UpdatedBy      string            `json:"updatedBy,omitempty" bson:"updatedBy,omitempty"`
-	CreatedAt      time.Time         `json:"created,omitempty" bson:"created,omitempty"`
-	UpdatedAt      time.Time         `json:"updated,omitempty" bson:"updated,omitempty"`
-	DeletedAt      *time.Time        `json:"deletedAt,omitempty" bson:"deletedAt,omitempty"`
-	Reviews        []Review          `json:"reviews,omitempty" bson:"reviews,omitempty"`
-	Merch          []Merch           `json:"merch,omitempty" bson:"merch,omitempty"`
-	Amenities      []string          `json:"amenities,omitempty" bson:"amenities,omitempty"`
-	Events         []Event           `json:"events,omitempty" bson:"events,omitempty"`
-	Tags           []string          `json:"tags,omitempty" bson:"tags,omitempty"`
-	Medias         []Media           `json:"media,omitempty" bson:"media,omitempty"`
-	OperatingHours []string          `json:"operatinghours,omitempty" bson:"operatinghours,omitempty"`
-	Keywords       []string          `json:"keywords,omitempty" bson:"keywords,omitempty"`
+	PlaceID           string                 `json:"placeid" bson:"placeid"`
+	Name              string                 `json:"name" bson:"name"`
+	Description       string                 `json:"description" bson:"description"`
+	Place             string                 `json:"place" bson:"place"`
+	Capacity          int                    `json:"capacity" bson:"capacity"`
+	Date              string                 `json:"date" bson:"date"`
+	Address           string                 `json:"address" bson:"address"`
+	CreatedBy         string                 `json:"createdBy,omitempty" bson:"createdBy,omitempty"`
+	OrganizerName     string                 `json:"organizer_name" bson:"organizer_name"`
+	OrganizerContact  string                 `json:"organizer_contact" bson:"organizer_contact"`
+	Tickets           []Ticket               `json:"tickets" bson:"tickets"`
+	Media             []Media                `json:"media" bson:"media"`
+	Merch             []Merch                `json:"merch" bson:"merch"`
+	StartDateTime     time.Time              `json:"start_date_time" bson:"start_date_time"`
+	EndDateTime       time.Time              `json:"end_date_time" bson:"end_date_time"`
+	Category          string                 `json:"category" bson:"category"`
+	Banner            string                 `json:"banner" bson:"banner"`
+	WebsiteURL        string                 `json:"website_url" bson:"website_url"`
+	Status            string                 `json:"status" bson:"status"`
+	AccessibilityInfo string                 `json:"accessibility_info" bson:"accessibility_info"`
+	Reviews           []Review               `json:"reviews" bson:"reviews"`
+	SocialMediaLinks  []string               `json:"social_links" bson:"social_links"`
+	Tags              []string               `json:"tags" bson:"tags"`
+	CustomFields      map[string]interface{} `json:"custom_fields" bson:"custom_fields"`
+	CreatedAt         time.Time              `json:"created_at" bson:"created_at"`
+	UpdatedAt         time.Time              `json:"updated_at" bson:"updated_at"`
+	City              string                 `json:"city,omitempty" bson:"city,omitempty"`
+	Country           string                 `json:"country,omitempty" bson:"country,omitempty"`
+	ZipCode           string                 `json:"zipCode,omitempty" bson:"zipCode,omitempty"`
+	Coordinates       Coordinates            `json:"coordinates,omitempty" bson:"coordinates,omitempty"`
+	Phone             string                 `json:"phone,omitempty" bson:"phone,omitempty"`
+	Website           string                 `json:"website,omitempty" bson:"website,omitempty"`
+	IsOpen            bool                   `json:"isopen,omitempty" bson:"isopen,omitempty"`
+	Distance          float64                `json:"distance,omitempty" bson:"distance,omitempty"`
+	Views             int                    `json:"views,omitempty" bson:"views,omitempty"`
+	ReviewCount       int                    `json:"reviewCount,omitempty" bson:"reviewCount,omitempty"`
+	SocialLinks       map[string]string      `json:"socialLinks,omitempty" bson:"socialLinks,omitempty"`
+	UpdatedBy         string                 `json:"updatedBy,omitempty" bson:"updatedBy,omitempty"`
+	DeletedAt         *time.Time             `json:"deletedAt,omitempty" bson:"deletedAt,omitempty"`
+	Amenities         []string               `json:"amenities,omitempty" bson:"amenities,omitempty"`
+	Events            []Event                `json:"events,omitempty" bson:"events,omitempty"`
+	OperatingHours    []string               `json:"operatinghours,omitempty" bson:"operatinghours,omitempty"`
+	Keywords          []string               `json:"keywords,omitempty" bson:"keywords,omitempty"`
 }
 
 type PlaceStatus string
@@ -272,9 +318,9 @@ type Media struct {
 	FileSize      int64              `json:"fileSize,omitempty" bson:"fileSize,omitempty"`
 	MimeType      string             `json:"mimeType,omitempty" bson:"mimeType,omitempty"`
 	IsFeatured    bool               `json:"isFeatured,omitempty" bson:"isFeatured,omitempty"`
-	EntityID      primitive.ObjectID `json:"entity_id" bson:"entity_id"`
-	EntityType    string             `json:"entity_type" bson:"entity_type"` // "event" or "place"
-	MediaType     string             `json:"media_type" bson:"media_type"`   // "image" or "video"
+	EntityID      string             `json:"entityid" bson:"entityid"`
+	EntityType    string             `json:"entitytype" bson:"entitytype"` // "event" or "place"
+	MediaType     string             `json:"media_type" bson:"media_type"` // "image" or "video"
 	CreatedAt     time.Time          `json:"created_at" bson:"created_at"`
 	UserID        primitive.ObjectID `bson:"user_id" json:"userId"`
 	UpdatedAt     time.Time          `bson:"updated_at" json:"updatedAt"`
@@ -416,4 +462,41 @@ type UserProfile struct {
 	AvatarURL string             `bson:"avatar_url,omitempty" json:"avatarUrl"`
 	CreatedAt time.Time          `bson:"created_at" json:"createdAt"`
 	UpdatedAt time.Time          `bson:"updated_at" json:"updatedAt"`
+}
+
+type Business struct {
+	ID          primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
+	Name        string             `json:"name" bson:"name"`
+	Type        string             `json:"type" bson:"type"`
+	Location    string             `json:"location" bson:"location"`
+	Description string             `json:"description" bson:"description"`
+}
+
+type Booking struct {
+	ID         primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
+	BusinessID primitive.ObjectID `json:"business_id" bson:"business_id"`
+	UserName   string             `json:"user_name" bson:"user_name"`
+	TimeSlot   string             `json:"time_slot" bson:"time_slot"`
+}
+
+type MenuItem struct {
+	ID          primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
+	Name        string             `json:"name" bson:"name"`
+	Price       float64            `json:"price" bson:"price"`
+	Description string             `json:"description" bson:"description"`
+}
+
+type Promotion struct {
+	ID          primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
+	Title       string             `json:"title" bson:"title"`
+	Description string             `json:"description" bson:"description"`
+	ExpiryDate  time.Time          `json:"expiry_date" bson:"expiry_date"`
+}
+
+// Owner Management Handlers
+type Owner struct {
+	ID       primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
+	Name     string             `json:"name" bson:"name"`
+	Email    string             `json:"email" bson:"email"`
+	Password string             `json:"password" bson:"password"`
 }

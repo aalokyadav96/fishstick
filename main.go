@@ -65,6 +65,7 @@ func main() {
 	router.GET("/places", Index)
 	router.GET("/events", Index)
 	router.GET("/feed", Index)
+	router.GET("/api/sda", GetAds)
 	router.GET("/user/:username", Index)
 	router.GET("/event/:eventid", Index)
 	router.GET("/place/:placeid", Index)
@@ -103,11 +104,11 @@ func main() {
 
 	// router.POST("/api/event/:eventid/review", authenticate(addReview))
 
-	router.POST("/api/event/:eventid/media", authenticate(addMedia))
-	router.GET("/api/event/:eventid/media/:id", getMedia)
-	router.PUT("/api/event/:eventid/media/:id", editMedia)
-	router.GET("/api/event/:eventid/media", getMedias)
-	router.DELETE("/api/event/:eventid/media/:id", authenticate(deleteMedia))
+	router.POST("/api/media/:entitytype/:entityid", authenticate(addMedia))
+	router.GET("/api/media/:entitytype/:entityid/:id", getMedia)
+	router.PUT("/api/media/:entitytype/:entityid/:id", editMedia)
+	router.GET("/api/media/:entitytype/:entityid", getMedias)
+	router.DELETE("/api/media/:entitytype/:entityid/:id", authenticate(deleteMedia))
 
 	router.POST("/api/event/:eventid/merch", authenticate(createMerch))
 	router.POST("/api/event/:eventid/merch/:merchid/buy", authenticate(buyMerch))
@@ -136,11 +137,31 @@ func main() {
 	router.PUT("/api/place/:placeid", authenticate(editPlace))
 	router.DELETE("/api/place/:placeid", authenticate(deletePlace))
 	// router.DELETE("/api/place/:placeid/review", authenticate(addReview))
-	router.DELETE("/api/place/:placeid/media", authenticate(addMedia))
+
 	router.POST("/api/place/:placeid/merch", authenticate(createMerch))
 	router.GET("/api/place/:placeid/merch/:merchid", getMerch)
 	router.PUT("/api/place/:placeid/merch/:merchid", authenticate(editMerch))
 	router.DELETE("/api/place/:placeid/merch/:merchid", authenticate(deleteMerch))
+
+	router.GET("/businesses", GetBusinesses)
+	router.POST("/business", AddBusinessHandler)
+	router.GET("/business/:id", GetBusinessHandler)
+	router.POST("/business/:id/book", BookSlotHandler)
+	router.GET("/business/:id/menu", GetMenuHandler)
+	router.GET("/business/:id/promotions", GetPromotionsHandler)
+
+	// Define business-side routes
+	router.POST("/owner/register", RegisterOwnerHandler)
+	router.POST("/owner/login", LoginOwnerHandler)
+	router.POST("/owner/business", AddBusinessByOwnerHandler)
+	router.PUT("/owner/business/:id", UpdateBusinessHandler)
+	router.DELETE("/owner/business/:id", DeleteBusinessHandler)
+	router.POST("/owner/business/:id/menu", AddOrUpdateMenuHandler)
+	router.DELETE("/owner/business/:id/menu/:itemId", DeleteMenuItemHandler)
+	router.POST("/owner/business/:id/promotions", AddPromotionHandler)
+	router.DELETE("/owner/business/:id/promotions/:promoId", DeletePromotionHandler)
+	router.GET("/owner/business/:id/bookings", ViewBookingsHandler)
+	router.DELETE("/owner/business/:id/bookings/:bookingId", CancelBookingHandler)
 
 	// CORS setup
 	allowedOrigin := os.Getenv("ALLOWED_ORIGIN")

@@ -8,86 +8,191 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/julienschmidt/httprouter"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
+// // Function to handle the creation of merchandise
+// func createMerch(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+// 	eventID := ps.ByName("eventid")
+
+// 	// Parse the multipart form data (with a 10MB limit)
+// 	err := r.ParseMultipartForm(10 << 20) // Limit the size to 10 MB
+// 	if err != nil {
+// 		http.Error(w, "Unable to parse form", http.StatusBadRequest)
+// 		return
+// 	}
+
+// 	// Retrieve form values
+// 	name := r.FormValue("name")
+// 	price, err := strconv.ParseFloat(r.FormValue("price"), 64)
+// 	if err != nil {
+// 		http.Error(w, "Invalid price value", http.StatusBadRequest)
+// 		return
+// 	}
+// 	stock, err := strconv.Atoi(r.FormValue("stock"))
+// 	if err != nil {
+// 		http.Error(w, "Invalid stock value", http.StatusBadRequest)
+// 		return
+// 	}
+
+// 	// Validate merchandise data
+// 	if name == "" || price <= 0 || stock < 0 {
+// 		http.Error(w, "Invalid merchandise data: Name, Price, and Stock are required.", http.StatusBadRequest)
+// 		return
+// 	}
+
+// 	// Create a new Merch instance
+// 	merch := Merch{
+// 		EventID: eventID,
+// 		Name:    name,
+// 		Price:   price,
+// 		Stock:   stock,
+// 	}
+
+// 	// Generate a unique merchandise ID
+// 	merch.MerchID = generateID(14)
+
+// 	// Handle banner file upload
+// 	bannerFile, _, err := r.FormFile("image")
+// 	if err != nil && err != http.ErrMissingFile {
+// 		http.Error(w, "Error retrieving banner file", http.StatusBadRequest)
+// 		return
+// 	}
+// 	defer bannerFile.Close()
+
+// 	// If a banner file is provided, save it
+// 	if bannerFile != nil {
+// 		out, err := os.Create("./merchpic/" + merch.MerchID + ".jpg")
+// 		if err != nil {
+// 			http.Error(w, "Error saving banner", http.StatusInternalServerError)
+// 			return
+// 		}
+// 		defer out.Close()
+// 		if _, err := io.Copy(out, bannerFile); err != nil {
+// 			http.Error(w, "Error saving banner", http.StatusInternalServerError)
+// 			return
+// 		}
+// 		merch.MerchPhoto = merch.MerchID + ".jpg"
+// 	}
+
+// 	// Insert merchandise into MongoDB
+// 	collection := client.Database("eventdb").Collection("merch")
+// 	_, err = collection.InsertOne(context.TODO(), merch)
+// 	if err != nil {
+// 		http.Error(w, fmt.Sprintf("Failed to insert merchandise: %v", err), http.StatusInternalServerError)
+// 		return
+// 	}
+
+// 	// Respond with the created merchandise
+// 	w.Header().Set("Content-Type", "application/json")
+// 	json.NewEncoder(w).Encode(merch)
+// }
+
 // Function to handle the creation of merchandise
 func createMerch(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	eventID := ps.ByName("eventid")
+	if eventID == "" {
+		http.Error(w, "Event ID is required", http.StatusBadRequest)
+		return
+	}
 
 	// Parse the multipart form data (with a 10MB limit)
 	err := r.ParseMultipartForm(10 << 20) // Limit the size to 10 MB
 	if err != nil {
-		http.Error(w, "Unable to parse form", http.StatusBadRequest)
+		http.Error(w, "Unable to parse form: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	// Retrieve form values
 	name := r.FormValue("name")
 	price, err := strconv.ParseFloat(r.FormValue("price"), 64)
-	if err != nil {
-		http.Error(w, "Invalid price value", http.StatusBadRequest)
+	if err != nil || price <= 0 {
+		http.Error(w, "Invalid price value. Must be a positive number.", http.StatusBadRequest)
 		return
 	}
+
 	stock, err := strconv.Atoi(r.FormValue("stock"))
-	if err != nil {
-		http.Error(w, "Invalid stock value", http.StatusBadRequest)
+	if err != nil || stock < 0 {
+		http.Error(w, "Invalid stock value. Must be a non-negative integer.", http.StatusBadRequest)
 		return
 	}
 
 	// Validate merchandise data
-	if name == "" || price <= 0 || stock < 0 {
-		http.Error(w, "Invalid merchandise data: Name, Price, and Stock are required.", http.StatusBadRequest)
+	if len(name) == 0 || len(name) > 100 {
+		http.Error(w, "Name must be between 1 and 100 characters.", http.StatusBadRequest)
 		return
 	}
 
 	// Create a new Merch instance
 	merch := Merch{
-		EventID: eventID,
-		Name:    name,
-		Price:   price,
-		Stock:   stock,
+		EventID:   eventID,
+		Name:      name,
+		Price:     price,
+		Stock:     stock,
+		MerchID:   generateID(14), // Generate unique merchandise ID
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
 	}
-
-	// Generate a unique merchandise ID
-	merch.MerchID = generateID(14)
 
 	// Handle banner file upload
-	bannerFile, _, err := r.FormFile("image")
+	bannerFile, bannerHeader, err := r.FormFile("image")
 	if err != nil && err != http.ErrMissingFile {
-		http.Error(w, "Error retrieving banner file", http.StatusBadRequest)
+		http.Error(w, "Error retrieving banner file: "+err.Error(), http.StatusBadRequest)
 		return
 	}
-	defer bannerFile.Close()
 
-	// If a banner file is provided, save it
 	if bannerFile != nil {
-		out, err := os.Create("./merchpic/" + merch.MerchID + ".jpg")
+		defer bannerFile.Close()
+
+		// Validate file type using MIME type
+		mimeType := bannerHeader.Header.Get("Content-Type")
+		fileExtension := ""
+		switch mimeType {
+		case "image/jpeg":
+			fileExtension = ".jpg"
+		case "image/png":
+			fileExtension = ".png"
+		default:
+			http.Error(w, "Unsupported image type. Only JPEG and PNG are allowed.", http.StatusUnsupportedMediaType)
+			return
+		}
+
+		// Save the banner file securely
+		savePath := "./merchpic/" + merch.MerchID + fileExtension
+		out, err := os.Create(savePath)
 		if err != nil {
-			http.Error(w, "Error saving banner", http.StatusInternalServerError)
+			http.Error(w, "Error saving banner: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 		defer out.Close()
+
 		if _, err := io.Copy(out, bannerFile); err != nil {
-			http.Error(w, "Error saving banner", http.StatusInternalServerError)
+			http.Error(w, "Error saving banner: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
-		merch.MerchPhoto = merch.MerchID + ".jpg"
+
+		// Set the banner photo URL
+		merch.MerchPhoto = merch.MerchID + fileExtension
 	}
 
 	// Insert merchandise into MongoDB
 	collection := client.Database("eventdb").Collection("merch")
 	_, err = collection.InsertOne(context.TODO(), merch)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to insert merchandise: %v", err), http.StatusInternalServerError)
+		http.Error(w, "Failed to insert merchandise: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	// Respond with the created merchandise
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(merch)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"ok":      true,
+		"message": "Merchandise created successfully.",
+		"data":    merch,
+	})
 }
 
 // Fetch a single merchandise item

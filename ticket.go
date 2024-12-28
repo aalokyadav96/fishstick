@@ -10,25 +10,85 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 )
+
+// // Create Ticket
+// func createTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+// 	eventID := ps.ByName("eventid")
+
+// 	// Retrieve form values
+// 	name := r.FormValue("name")
+// 	priceStr := r.FormValue("price")
+// 	log.Println("\n\n\n\npriceStr : \n\n ", priceStr)
+// 	// Convert the string to float64
+// 	price, err := strconv.ParseFloat(priceStr, 64)
+// 	if err != nil {
+// 		// Handle error (e.g., invalid input)
+// 		http.Error(w, "Invalid price value", http.StatusBadRequest)
+// 		return
+// 	}
+// 	quantity, err := strconv.Atoi(r.FormValue("quantity"))
+// 	if err != nil {
+// 		http.Error(w, "Invalid quantity value", http.StatusBadRequest)
+// 		return
+// 	}
+
+// 	// Create a new Ticket instance
+// 	tick := Ticket{
+// 		EventID:  eventID,
+// 		Name:     name,
+// 		Price:    price,
+// 		Quantity: quantity,
+// 	}
+
+// 	tick.TicketID = generateID(12)
+
+// 	// Insert ticket into MongoDB
+// 	collection := client.Database("eventdb").Collection("ticks")
+// 	_, err = collection.InsertOne(context.TODO(), tick)
+// 	if err != nil {
+// 		http.Error(w, err.Error(), http.StatusInternalServerError)
+// 		return
+// 	}
+
+// 	// Respond with the created ticket
+// 	w.Header().Set("Content-Type", "application/json")
+// 	json.NewEncoder(w).Encode(tick)
+// }
 
 // Create Ticket
 func createTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	eventID := ps.ByName("eventid")
 
-	// Retrieve form values
+	// Parse form values
 	name := r.FormValue("name")
 	priceStr := r.FormValue("price")
-	log.Println("\n\n\n\npriceStr : \n\n ", priceStr)
-	// Convert the string to float64
+	quantityStr := r.FormValue("quantity")
+
+	// Validate inputs
+	if name == "" {
+		http.Error(w, "Name is required", http.StatusBadRequest)
+		return
+	}
+	if priceStr == "" {
+		http.Error(w, "Price is required", http.StatusBadRequest)
+		return
+	}
+	if quantityStr == "" {
+		http.Error(w, "Quantity is required", http.StatusBadRequest)
+		return
+	}
+
+	// Convert price and quantity to appropriate types
 	price, err := strconv.ParseFloat(priceStr, 64)
-	if err != nil {
-		// Handle error (e.g., invalid input)
+	if err != nil || price <= 0 {
 		http.Error(w, "Invalid price value", http.StatusBadRequest)
 		return
 	}
-	quantity, err := strconv.Atoi(r.FormValue("quantity"))
-	if err != nil {
+
+	quantity, err := strconv.Atoi(quantityStr)
+	if err != nil || quantity < 0 {
 		http.Error(w, "Invalid quantity value", http.StatusBadRequest)
 		return
 	}
@@ -39,21 +99,23 @@ func createTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) 
 		Name:     name,
 		Price:    price,
 		Quantity: quantity,
+		TicketID: generateID(12), // Ensure unique ID
 	}
-
-	tick.TicketID = generateID(12)
 
 	// Insert ticket into MongoDB
 	collection := client.Database("eventdb").Collection("ticks")
 	_, err = collection.InsertOne(context.TODO(), tick)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Failed to create ticket: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	// Respond with the created ticket
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(tick)
+	w.WriteHeader(http.StatusCreated)
+	if err := json.NewEncoder(w).Encode(tick); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 func getTickets(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
@@ -134,31 +196,99 @@ func getTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	json.NewEncoder(w).Encode(ticket)
 }
 
+// // Edit Ticket
+// func editTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+// 	eventID := ps.ByName("eventid")
+// 	tickID := ps.ByName("ticketid")
+
+// 	var tick Ticket
+// 	// Parse the incoming ticket data
+// 	if err := json.NewDecoder(r.Body).Decode(&tick); err != nil {
+// 		http.Error(w, "Invalid input data", http.StatusBadRequest)
+// 		return
+// 	}
+
+// 	// Fetch the current ticket from the database to compare with the new data
+// 	collection := client.Database("eventdb").Collection("ticks")
+// 	var existingTicket Ticket
+// 	err := collection.FindOne(context.TODO(), bson.M{"eventid": eventID, "ticketid": tickID}).Decode(&existingTicket)
+// 	if err != nil {
+// 		http.Error(w, "Ticket not found", http.StatusNotFound)
+// 		return
+// 	}
+
+// 	// Create a map to store fields that need to be updated
+// 	updateFields := bson.M{}
+
+// 	// Only add fields to update if they have changed
+// 	if tick.Name != "" && tick.Name != existingTicket.Name {
+// 		updateFields["name"] = tick.Name
+// 	}
+// 	if tick.Price > 0 && tick.Price != existingTicket.Price {
+// 		updateFields["price"] = tick.Price
+// 	}
+// 	if tick.Quantity >= 0 && tick.Quantity != existingTicket.Quantity {
+// 		updateFields["quantity"] = tick.Quantity
+// 	}
+
+// 	// If no fields have changed, return a response without doing an update
+// 	if len(updateFields) == 0 {
+// 		w.Header().Set("Content-Type", "application/json")
+// 		w.WriteHeader(http.StatusOK)
+// 		json.NewEncoder(w).Encode(map[string]interface{}{
+// 			"success": false,
+// 			"message": "No changes detected for ticket",
+// 		})
+// 		return
+// 	}
+
+// 	// Update the ticket in MongoDB with only the changed fields
+// 	_, err = collection.UpdateOne(context.TODO(), bson.M{"eventid": eventID, "ticketid": tickID}, bson.M{"$set": updateFields})
+// 	if err != nil {
+// 		http.Error(w, err.Error(), http.StatusInternalServerError)
+// 		return
+// 	}
+
+// 	// Invalidate the cache for this event's tickets
+// 	RdxDel("event:" + eventID + ":tickets")
+
+// 	// Send a success response
+// 	w.Header().Set("Content-Type", "application/json")
+// 	w.WriteHeader(http.StatusOK)
+// 	json.NewEncoder(w).Encode(map[string]interface{}{
+// 		"success": true,
+// 		"message": "Ticket updated successfully",
+// 		"data":    updateFields,
+// 	})
+// }
+
 // Edit Ticket
 func editTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	eventID := ps.ByName("eventid")
 	tickID := ps.ByName("ticketid")
 
+	// Parse incoming ticket data
 	var tick Ticket
-	// Parse the incoming ticket data
 	if err := json.NewDecoder(r.Body).Decode(&tick); err != nil {
 		http.Error(w, "Invalid input data", http.StatusBadRequest)
 		return
 	}
 
-	// Fetch the current ticket from the database to compare with the new data
+	// Fetch the current ticket from the database
 	collection := client.Database("eventdb").Collection("ticks")
 	var existingTicket Ticket
 	err := collection.FindOne(context.TODO(), bson.M{"eventid": eventID, "ticketid": tickID}).Decode(&existingTicket)
 	if err != nil {
-		http.Error(w, "Ticket not found", http.StatusNotFound)
+		if err == mongo.ErrNoDocuments {
+			http.Error(w, "Ticket not found", http.StatusNotFound)
+		} else {
+			http.Error(w, "Database error", http.StatusInternalServerError)
+		}
 		return
 	}
 
-	// Create a map to store fields that need to be updated
+	// Prepare fields to update
 	updateFields := bson.M{}
-
-	// Only add fields to update if they have changed
 	if tick.Name != "" && tick.Name != existingTicket.Name {
 		updateFields["name"] = tick.Name
 	}
@@ -169,7 +299,7 @@ func editTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		updateFields["quantity"] = tick.Quantity
 	}
 
-	// If no fields have changed, return a response without doing an update
+	// If no fields have changed, return a response without updating
 	if len(updateFields) == 0 {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
@@ -180,17 +310,21 @@ func editTicket(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		return
 	}
 
-	// Update the ticket in MongoDB with only the changed fields
+	// Perform the update in MongoDB
 	_, err = collection.UpdateOne(context.TODO(), bson.M{"eventid": eventID, "ticketid": tickID}, bson.M{"$set": updateFields})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Failed to update ticket: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// Invalidate the cache for this event's tickets
-	RdxDel("event:" + eventID + ":tickets")
+	// Invalidate the cache for the event's tickets
+	if _, err := RdxDel("event:" + eventID + ":tickets"); err != nil {
+		log.Printf("Cache deletion failed for event: %s, Error: %v", eventID, err)
+	} else {
+		log.Printf("Cache invalidated for event: %s", eventID)
+	}
 
-	// Send a success response
+	// Respond with success and updated fields
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{
